@@ -29,11 +29,20 @@
 ### Exportar transiciones a CSV
 
 ```bash
-python export_transitions.py
-python export_transitions.py -o mis_datos.csv
+python -m scripts.export_transitions
+python -m scripts.export_transitions -o mis_datos.csv
 ```
 
-Campos: `timestamp`, `task_id`, `task_name`, `from_column`, `to_column`.
+Campos: `task_id`, `task_name`, `started_at`, `finished_at`.
+
+### Scripts de pipeline
+
+| Script | Uso |
+|--------|-----|
+| `export_transitions` | Exportar a CSV |
+| `run_tests` | Ejecutar pytest |
+
+Ver `scripts/README.md`.
 
 ---
 

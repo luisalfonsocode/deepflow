@@ -15,6 +15,7 @@ class CompactTaskRow(QFrame):
         entered_at: str | None = None,
         on_click=None,
         max_name_len: int = 50,
+        ticket: str = "",
         parent=None,
     ):
         super().__init__(parent)
@@ -22,8 +23,13 @@ class CompactTaskRow(QFrame):
         self.setObjectName("compactTaskRow")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(8)
+        layout.setContentsMargins(6, 3, 6, 3)
+        layout.setSpacing(6)
+
+        if ticket:
+            ticket_lbl = QLabel(ticket)
+            ticket_lbl.setObjectName("compactTaskTicket")
+            layout.addWidget(ticket_lbl, 0)
 
         display_name = text[:max_name_len] + ("…" if len(text) > max_name_len else "")
         lbl = QLabel(display_name)
@@ -39,7 +45,7 @@ class CompactTaskRow(QFrame):
         dur_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         dur_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         layout.addWidget(dur_lbl, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.setFixedHeight(44)
+        self.setFixedHeight(40)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.on_click:

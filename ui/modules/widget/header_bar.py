@@ -11,8 +11,8 @@ class HeaderBar(QWidget):
         super().__init__(parent)
         self.setObjectName("headerBar")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(2)
 
         for mod in modules:
             btn = QPushButton(f"{mod['icon']} {mod['title']}")

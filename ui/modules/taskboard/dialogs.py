@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.taskboard import COLUMNS, col_key_to_display
+from core.modules.taskboard import BoardService, COLUMNS, col_key_to_display
 from core.modules.taskboard.utils import (
     compute_time_in_columns,
     format_date_display,
@@ -23,6 +23,7 @@ from core.modules.taskboard.utils import (
     format_seconds_duration,
 )
 from ui.style_loader import load_styles
+from ui.theme import Layout
 
 
 class _SubtaskCheckButton(QPushButton):
@@ -66,16 +67,7 @@ class _SubtaskLabel(QLabel):
         super().mousePressEvent(event)
 
 
-def _find_task_column(board, task_id: str) -> str | None:
-    """Columna donde está la tarea."""
-    for col in COLUMNS:
-        for t in board.data.get(col, []):
-            if t.get("id") == task_id:
-                return col
-    return None
-
-
-def open_task_detail(board, task_id: str, on_close_callback, parent=None) -> bool:
+def open_task_detail(board: BoardService, task_id: str, on_close_callback, parent=None) -> bool:
     """
     Abre el modal unificado de detalle/edición de tarea.
     Retorna True si se aceptó, False si se rechazó o la tarea no existe.
@@ -98,15 +90,15 @@ class TaskDetailDialog(QDialog):
         self.on_close_callback = on_close_callback
         self.setWindowTitle("Tarea")
         self.setModal(True)
-        self.setMinimumSize(680, 420)
-        self.resize(760, 480)
+        self.setMinimumSize(Layout.TASK_DETAIL_MIN_WIDTH, Layout.TASK_DETAIL_MIN_HEIGHT)
+        self.resize(Layout.TASK_DETAIL_DEFAULT_WIDTH, Layout.TASK_DETAIL_DEFAULT_HEIGHT)
 
         task = board.get_task(task_id)
         if not task:
             self.reject()
             return
 
-        self._current_col = _find_task_column(board, task_id) or "in_progress"
+        self._current_col = board.get_task_column(task_id) or "in_progress"
         self._combo_ready = False
         self._build_ui(task)
         self._combo_ready = True
@@ -115,19 +107,19 @@ class TaskDetailDialog(QDialog):
 
     def _build_ui(self, task: dict):
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
 
         # Dos paneles: izquierda (campos) | derecha (subtareas)
         panels = QHBoxLayout()
-        panels.setSpacing(24)
+        panels.setSpacing(16)
         panels.setContentsMargins(0, 0, 0, 0)
 
         # Panel izquierdo: estado, actividad (50 chars), fechas
         left_panel = QWidget()
         left_panel.setObjectName("detailLeftPanel")
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setSpacing(14)
+        left_layout.setSpacing(8)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
@@ -191,6 +183,20 @@ class TaskDetailDialog(QDialog):
         time_info.setWordWrap(True)
         left_layout.addWidget(time_info)
 
+        # Ticket (código de solicitud externa) al final
+        ticket_row = QHBoxLayout()
+        ticket_label = QLabel("Ticket:")
+        ticket_label.setObjectName("taskQuickEditInfo")
+        ticket_row.addWidget(ticket_label, 0)
+        self.ticket_edit = QLineEdit()
+        self.ticket_edit.setObjectName("taskQuickEditText")
+        self.ticket_edit.setText(task.get("ticket", ""))
+        self.ticket_edit.setPlaceholderText("Ej: JIRA-123, INC-456 (código de solicitud externa)")
+        self.ticket_edit.setMaxLength(32)
+        self.ticket_edit.installEventFilter(self)
+        ticket_row.addWidget(self.ticket_edit, 1)
+        left_layout.addLayout(ticket_row)
+
         left_layout.addStretch()
         panels.addWidget(left_panel, 1)
 
@@ -198,7 +204,7 @@ class TaskDetailDialog(QDialog):
         right_panel = QWidget()
         right_panel.setObjectName("detailRightPanel")
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setSpacing(10)
+        right_layout.setSpacing(6)
         right_layout.setContentsMargins(0, 0, 0, 0)
 
         subtask_label = QLabel("Subtareas")
@@ -232,7 +238,7 @@ class TaskDetailDialog(QDialog):
 
         scroll_wrapper = QWidget()
         scroll_wrapper.setObjectName("subtasksScrollWrapper")
-        scroll_wrapper.setMinimumHeight(240)
+        scroll_wrapper.setMinimumHeight(180)
         wrapper_layout = QVBoxLayout(scroll_wrapper)
         wrapper_layout.setContentsMargins(0, 0, 0, 0)
         wrapper_layout.setSpacing(0)
@@ -245,7 +251,7 @@ class TaskDetailDialog(QDialog):
         scroll.setWidgetResizable(True)
         scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setFixedHeight(240)
+        scroll.setFixedHeight(180)
         scroll.setWidget(scroll_wrapper)
         right_layout.addWidget(scroll)
 
@@ -303,7 +309,7 @@ class TaskDetailDialog(QDialog):
             wrap = QFrame()
             wrap.setObjectName("subtaskRow")
             wrap.setLayout(row)
-            wrap.setFixedHeight(36)
+            wrap.setFixedHeight(32)
             wrap.setProperty("done", "true" if st["done"] else "false")
             self._subtasks_layout.addWidget(wrap)
 
@@ -342,7 +348,7 @@ class TaskDetailDialog(QDialog):
                 if obj is self._subtask_input:
                     self._on_add_subtask()
                     return True
-                if obj is self.text_edit:
+                if obj in (self.text_edit, self.ticket_edit):
                     self._on_save()
                     return True
                 if obj is self.state_combo or obj is self.state_combo.view():
@@ -354,9 +360,11 @@ class TaskDetailDialog(QDialog):
         text = self.text_edit.text().strip()
         if not text:
             text = "Nueva tarea"
+        ticket = self.ticket_edit.text().strip()
         ok_name = self.board.update_task_name(self.task_id, text)
+        ok_ticket = self.board.update_task_ticket(self.task_id, ticket)
         ok_sub = self.board.update_task_subtasks(self.task_id, self._subtasks)
-        if ok_name or ok_sub:
+        if ok_name or ok_ticket or ok_sub:
             self._show_saved_effect()
 
     def _show_saved_effect(self):

@@ -5,15 +5,19 @@ Construye y conecta dependencias según el principio de Inversión de Dependenci
 
 from typing import Any
 
-from adapters.persistence import JsonFileBoardRepository
+from adapters.persistence import ZODBBoardRepository
+from adapters.persistence.json_to_zodb import migrate_json_to_zodb_if_needed
 from core.modules.taskboard import BoardService
-from core.modules.taskboard.constants import DB_PATH
+from core.modules.taskboard.constants import DB_PATH, DB_ZODB_PATH
 
 
 def create_board_service(repository: Any = None) -> BoardService:
     """
     Crea BoardService con su repositorio inyectado.
-    Punto único de construcción para facilitar testing y configuración.
+    Usa ZODB por defecto (monoflow_db.fs). Migra desde JSON si existe.
     """
-    repo = repository or JsonFileBoardRepository(DB_PATH)
+    if repository is not None:
+        return BoardService(repository)
+    migrate_json_to_zodb_if_needed(DB_PATH)
+    repo = ZODBBoardRepository(DB_ZODB_PATH)
     return BoardService(repo)

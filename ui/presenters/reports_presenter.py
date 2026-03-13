@@ -23,19 +23,33 @@ class ReportsPresenter:
         self._board = board
         self._exporter = exporter or ExcelActivityExporter()
 
-    def load_activities(self) -> list[dict[str, Any]]:
-        """Recarga el board y retorna actividades para la tabla (con subtareas)."""
+    def _get_export_service(self) -> ExportService:
         self._board.load()
-        svc = ExportService(
+        return ExportService(
             self._board.data,
             list(COLUMNS),
             col_key_to_display,
         )
-        return svc.get_all_activities()
 
-    def export_to_excel(self, activities: list[dict[str, Any]], filepath: Path) -> bool:
-        """Exporta actividades a Excel. Retorna True si tuvo éxito."""
-        return self._exporter.export(activities, filepath)
+    def load_activities(self) -> list[dict[str, Any]]:
+        """Recarga el board y retorna tareas para la tabla."""
+        return self._get_export_service().get_all_activities()
+
+    def load_transitions(self) -> list[dict[str, Any]]:
+        """Recarga el board y retorna transiciones."""
+        return self._get_export_service().get_all_transitions()
+
+    def load_subtasks(self) -> list[dict[str, Any]]:
+        """Recarga el board y retorna subtareas aplanadas."""
+        return self._get_export_service().get_all_subtasks()
+
+    def export_to_excel(self, filepath: Path) -> bool:
+        """Exporta los 3 reportes (Tareas, Subtareas, Transiciones) a Excel. Retorna True si tuvo éxito."""
+        svc = self._get_export_service()
+        activities = svc.get_all_activities()
+        subtasks = svc.get_all_subtasks()
+        transitions = svc.get_all_transitions()
+        return self._exporter.export(activities, subtasks, transitions, filepath)
 
     def suggest_filename_excel(self) -> str:
         """Nombre sugerido para exportación Excel."""

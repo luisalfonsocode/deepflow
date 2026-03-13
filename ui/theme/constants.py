@@ -39,16 +39,16 @@ class Layout:
     """Dimensiones y márgenes reutilizables."""
 
     # Task detail / dialogs
-    TASK_DETAIL_MIN_WIDTH: Final[int] = 680
-    TASK_DETAIL_MIN_HEIGHT: Final[int] = 420
-    TASK_DETAIL_DEFAULT_WIDTH: Final[int] = 760
-    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 480
+    TASK_DETAIL_MIN_WIDTH: Final[int] = 560
+    TASK_DETAIL_MIN_HEIGHT: Final[int] = 360
+    TASK_DETAIL_DEFAULT_WIDTH: Final[int] = 640
+    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 420
 
     # Modal módulos
-    MODAL_MIN_WIDTH: Final[int] = 600
-    MODAL_MIN_HEIGHT: Final[int] = 400
-    MODAL_DEFAULT_WIDTH: Final[int] = 720
-    MODAL_DEFAULT_HEIGHT: Final[int] = 480
+    MODAL_MIN_WIDTH: Final[int] = 520
+    MODAL_MIN_HEIGHT: Final[int] = 360
+    MODAL_DEFAULT_WIDTH: Final[int] = 640
+    MODAL_DEFAULT_HEIGHT: Final[int] = 420
 
     # Task input
     TASK_INPUT_MIN_WIDTH: Final[int] = 420
@@ -59,10 +59,10 @@ class Layout:
     MAX_TASKS_VISIBLE: Final[int] = 3
     MAX_NAME_LEN: Final[int] = 50
 
-    # Main shell
-    SHELL_MIN_WIDTH: Final[int] = 520
-    SHELL_MIN_HEIGHT: Final[int] = 300
-    SHELL_DEFAULT_WIDTH: Final[int] = 580
-    SHELL_DEFAULT_HEIGHT: Final[int] = 360
+    # Main shell / dashboard
+    SHELL_MIN_WIDTH: Final[int] = 420
+    SHELL_MIN_HEIGHT: Final[int] = 280
+    SHELL_DEFAULT_WIDTH: Final[int] = 480
+    SHELL_DEFAULT_HEIGHT: Final[int] = 320
 
 

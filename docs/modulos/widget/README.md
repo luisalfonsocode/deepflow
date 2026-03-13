@@ -16,7 +16,7 @@ Contenedor principal que lista todas las funcionalidades disponibles.
 
 ## Arquitectura
 
-- **core/modules/widget/**: Registro de módulos (`MODULES`, `get_module_index`)
+- **core/modules/widget/**: Registro de módulos (`MODULES`)
 - **ui/modules/widget/**: MainShell, ModuleCard, shell visual
 
 ---

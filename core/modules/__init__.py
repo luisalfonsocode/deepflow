@@ -7,7 +7,7 @@ from core.modules.taskboard import (
     WIP_LIMIT_PER_COLUMN,
     col_key_to_display,
 )
-from core.modules.widget import MODULES, get_module_index
+from core.modules.widget import MODULES
 
 __all__ = [
     "BoardRepository",
@@ -16,5 +16,4 @@ __all__ = [
     "WIP_LIMIT_PER_COLUMN",
     "col_key_to_display",
     "MODULES",
-    "get_module_index",
 ]

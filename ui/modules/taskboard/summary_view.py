@@ -19,7 +19,7 @@ from ui.style_loader import load_styles
 class TaskSummaryRow(QFrame):
     """Fila de tarea en el resumen. Clic abre detalle."""
 
-    def __init__(self, task_id: str, name: str, on_click, parent=None):
+    def __init__(self, task_id: str, name: str, on_click, ticket: str = "", parent=None):
         super().__init__(parent)
         self.task_id = task_id
         self.on_click = on_click
@@ -27,7 +27,7 @@ class TaskSummaryRow(QFrame):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setContentsMargins(8, 4, 8, 4)
 
         # Placeholder semáforo (se implementará después)
         semaphore = QLabel("○")
@@ -35,12 +35,17 @@ class TaskSummaryRow(QFrame):
         semaphore.setFixedWidth(20)
         layout.addWidget(semaphore)
 
+        if ticket:
+            ticket_lbl = QLabel(ticket)
+            ticket_lbl.setObjectName("taskSummaryTicket")
+            layout.addWidget(ticket_lbl, 0)
+
         name_lbl = QLabel(name[:80] + ("..." if len(name) > 80 else name))
         name_lbl.setObjectName("taskSummaryName")
         name_lbl.setWordWrap(True)
         layout.addWidget(name_lbl, 1)
 
-        self.setMinimumHeight(36)
+        self.setMinimumHeight(32)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -59,7 +64,7 @@ class TaskBoardSummaryView(QWidget):
 
     def _build_ui(self):
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(12, 12, 12, 12)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
 
         title = QLabel("Tareas en progreso")
         title.setObjectName("summaryTitle")
@@ -71,7 +76,7 @@ class TaskBoardSummaryView(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list_widget = QWidget()
         self.list_layout = QVBoxLayout(self.list_widget)
-        self.list_layout.setSpacing(4)
+        self.list_layout.setSpacing(2)
         scroll.setWidget(self.list_widget)
         self.main_layout.addWidget(scroll, 1)
 
@@ -104,6 +109,7 @@ class TaskBoardSummaryView(QWidget):
                     t["id"],
                     t.get("name", ""),
                     self._on_task_click,
+                    ticket=t.get("ticket", ""),
                 )
                 self.list_layout.addWidget(row)
 

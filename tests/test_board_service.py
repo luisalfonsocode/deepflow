@@ -190,6 +190,19 @@ def test_get_task_inexistente_retorna_none(board_service):
     assert board_service.get_task("uuid-fake") is None
 
 
+def test_get_task_column_retorna_columna_correcta(board_service):
+    """get_task_column retorna la columna donde está la tarea."""
+    t = board_service.create_task("X")
+    assert board_service.get_task_column(t["id"]) == "backlog"
+    board_service.move_task(t["id"], "in_progress")
+    assert board_service.get_task_column(t["id"]) == "in_progress"
+
+
+def test_get_task_column_inexistente_retorna_none(board_service):
+    """get_task_column retorna None si la tarea no existe."""
+    assert board_service.get_task_column("uuid-fake") is None
+
+
 # --- get_tasks_with_timestamps ---
 
 

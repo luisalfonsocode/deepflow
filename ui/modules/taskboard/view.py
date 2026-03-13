@@ -33,8 +33,8 @@ class TaskBoardView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         columns_layout = QHBoxLayout()
-        columns_layout.setContentsMargins(8, 8, 8, 8)
-        columns_layout.setSpacing(6)
+        columns_layout.setContentsMargins(6, 6, 6, 6)
+        columns_layout.setSpacing(4)
 
         self.columns: dict[str, ColumnWidget] = {}
         for col in COLUMNS:
@@ -110,6 +110,7 @@ class TaskBoardView(QWidget):
                     self._on_move,
                     on_click=self._on_task_click,
                     entered_at=t.get("entered_at"),
+                    ticket=t.get("ticket", ""),
                     parent=cw.tasks_widget,
                 )
                 cw.tasks_layout.insertWidget(cw.tasks_layout.count() - 1, card)

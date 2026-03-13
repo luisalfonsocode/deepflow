@@ -29,7 +29,7 @@ class InProgressCompact(QWidget):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
         # Fila 1: Detenidas
@@ -62,7 +62,7 @@ class InProgressCompact(QWidget):
 
         tickets_wrapper = QWidget()
         tickets_wrapper.setObjectName("ticketsScrollWrapper")
-        tickets_wrapper.setMinimumHeight(148)  # 3 filas × 44px + spacing
+        tickets_wrapper.setMinimumHeight(132)  # 3 filas × 40px + spacing
         wrapper_layout = QVBoxLayout(tickets_wrapper)
         wrapper_layout.setContentsMargins(0, 0, 0, 0)
         wrapper_layout.setSpacing(0)
@@ -76,7 +76,7 @@ class InProgressCompact(QWidget):
         scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setFixedHeight(148)
+        scroll.setFixedHeight(140)
         scroll.setWidget(tickets_wrapper)
         layout.addWidget(scroll)
 
@@ -114,6 +114,7 @@ class InProgressCompact(QWidget):
                     entered_at=t.get("entered_at") or t.get("started_at"),
                     on_click=lambda tid=t["id"]: self._on_task_click(tid),
                     max_name_len=50,
+                    ticket=t.get("ticket", ""),
                 )
                 self.tickets_layout.addWidget(row)
         else:
@@ -167,8 +168,8 @@ class _SectionHeader(QFrame):
             self.setProperty("section", section)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
         self.label = QLabel(title)
         self.label.setObjectName("sectionHeaderLabel")
         layout.addWidget(self.label)

@@ -29,16 +29,18 @@ Notificaciones y alertas (en desarrollo).
 
 ---
 
-## 2. Arquitectura
+## 2. Arquitectura y desarrollo
 
 - **[Arquitectura técnica](arquitectura.md)** – Flujo de datos, puertos, adaptadores, validaciones WIP
+- **[Guía de desarrollo](DESARROLLO.md)** – SOLID, separación UI/lógica, estructura
 
 ---
 
 ## 3. Infraestructura
 
-- **[Persistencia](infraestructura.md#persistencia)** – Formato JSON, exportación CSV
+- **[Persistencia](infraestructura.md#persistencia)** – ZODB, exportación CSV
 - **[Estilos](infraestructura.md#estilos)** – QSS, selectores, personalización
+- **[Versionado de base de datos](VERSIONADO_BASE_DATOS.md)** – Cómo migrar el schema cuando hay cambios
 
 ---
 

@@ -1,3 +1,5 @@
 PyQt6>=6.4.0
 pytest>=7.0.0
 openpyxl>=3.1.0
+ZODB>=6.0.0
+transaction>=3.0.0

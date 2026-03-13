@@ -18,9 +18,9 @@
                            │  composition.py       │ BoardRepository (puerto)
                            ▼                       ▼
                    ┌──────────────┐     ┌────────────────────────────┐
-                   │  Presenters  │     │ JsonFileBoardRepository    │
+                   │  Presenters  │     │ ZODBBoardRepository        │
                    │  ReportsView │     │ (adapters/persistence)     │
-                   │  + Excel     │     │   └─ json_file.py → .json   │
+                   │  + Excel     │     │   └─ monoflow_db.fs        │
                    └──────────────┘     └────────────────────────────┘
 ```
 
@@ -48,9 +48,17 @@
 
 | Componente | Descripción |
 |------------|-------------|
-| **persistence/** | JsonFileBoardRepository, json_file.py |
+| **persistence/** | ZODBBoardRepository (por defecto), JsonFileBoardRepository (legacy) |
+| **persistence/schema_versions.py** | Versionado y migraciones de schema |
 | **export/** | ExcelActivityExporter |
 | **ui/** | QtClipboardProvider (implementa ClipboardProvider) |
+
+### Base de datos ZODB y versionado
+
+- **ZODB** (`monoflow_db.fs`): base de datos embebida orientada a objetos
+- **schema_version**: en root de ZODB; `schema_versions.py` define migraciones
+- **Evolución**: incrementar `CURRENT_SCHEMA_VERSION` y añadir lógica en `migrate_to_latest()`
+- **Migración desde JSON**: si existe `monoflow_db.json` y no existe `.fs`, se migra automáticamente
 
 ### ui/
 

@@ -23,11 +23,3 @@ MODULES = [
         "enabled": False,
     },
 ]
-
-
-def get_module_index(module_id: str) -> int:
-    """Devuelve el índice de un módulo por su id."""
-    for i, m in enumerate(MODULES):
-        if m["id"] == module_id:
-            return i
-    return 0

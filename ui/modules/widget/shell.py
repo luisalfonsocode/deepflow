@@ -1,4 +1,4 @@
-"""Shell principal del Widget: 4 columnas; solo la última (derecha) tiene contenido."""
+"""Shell principal: dashboard con 4 columnas. Por ahora un único panel con contenido."""
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QFrame, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget
@@ -14,15 +14,6 @@ from ui.modules.alerts import AlertsView
 from ui.presenters.reports_presenter import ReportsPresenter
 from ui.style_loader import load_styles
 from ui.theme import ObjectNames, Layout
-
-
-def _reserved_column() -> QFrame:
-    """Columna vacía reservada para futuro."""
-    f = QFrame()
-    f.setObjectName(ObjectNames.WIDGET_COLUMN_RESERVED)
-    f.setMinimumWidth(60)
-    return f
-
 
 class ModuleModal(QDialog):
     """Modal con el contenido de un módulo. Solo UI."""
@@ -41,7 +32,7 @@ class ModuleModal(QDialog):
 
 
 class MainShell(QMainWindow):
-    """Widget con 4 columnas. Solo la última (derecha) llena: In Progress. Resto reservadas."""
+    """Dashboard con 4 columnas. Por ahora un único panel con contenido (In Progress)."""
 
     def __init__(self, board_service: BoardService | None = None):
         """
@@ -65,17 +56,15 @@ class MainShell(QMainWindow):
 
         main_layout.addWidget(HeaderBar(MODULES, self._on_module_click))
 
-        columns_layout = QHBoxLayout()
-        columns_layout.setContentsMargins(8, 8, 8, 8)
-        columns_layout.setSpacing(8)
+        # Dashboard: por ahora un único panel (In Progress). Las otras columnas se añadirán después.
+        dashboard_layout = QHBoxLayout()
+        dashboard_layout.setContentsMargins(8, 8, 8, 8)
+        dashboard_layout.setSpacing(0)
 
-        columns_layout.addWidget(_reserved_column(), 0)
-        columns_layout.addWidget(_reserved_column(), 0)
-        columns_layout.addWidget(_reserved_column(), 0)
         self.in_progress = InProgressCompact(self._board)
-        columns_layout.addWidget(self.in_progress, 1)
+        dashboard_layout.addWidget(self.in_progress, 1)
 
-        main_layout.addLayout(columns_layout)
+        main_layout.addLayout(dashboard_layout)
 
         load_styles(self)
 

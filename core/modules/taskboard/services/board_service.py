@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from core.modules.taskboard.constants import COLUMNS, DB_PATH, WIP_LIMIT_PER_COLUMN
+from core.modules.taskboard.constants import COLUMNS, WIP_LIMIT_PER_COLUMN
 
 if TYPE_CHECKING:
     from core.modules.taskboard.ports.board_repository import BoardRepository
@@ -47,11 +47,13 @@ class BoardService:
         now = datetime.now(timezone.utc).isoformat()
         task = {
             "id": str(uuid.uuid4()),
+            "ticket": "",
             "name": name.strip() or "Nueva tarea",
             "entered_at": now,
             "subtasks": [],
         }
         self._data["backlog"].append(task)
+        self._record_transition(task["id"], task["name"], None, "backlog")
         self.persist()
         return task
 
@@ -66,6 +68,7 @@ class BoardService:
         now = datetime.now(timezone.utc).isoformat()
         task = {
             "id": str(uuid.uuid4()),
+            "ticket": "",
             "name": name.strip() or "Nueva tarea",
             "entered_at": now,
             "subtasks": [],
@@ -75,6 +78,7 @@ class BoardService:
         if column_key == "done":
             task["finished_at"] = now
         self._data[column_key].append(task)
+        self._record_transition(task["id"], task["name"], None, column_key)
         self.persist()
         return task
 
@@ -85,6 +89,15 @@ class BoardService:
         if not task:
             return False
         task["name"] = new_name.strip() or task.get("name", "Nueva tarea")
+        self.persist()
+        return True
+
+    def update_task_ticket(self, task_id: str, ticket: str) -> bool:
+        """Modifica el ticket de una tarea. Retorna False si no existe."""
+        task = self._find_task(task_id)
+        if not task:
+            return False
+        task["ticket"] = ticket.strip()
         self.persist()
         return True
 
@@ -112,6 +125,9 @@ class BoardService:
         if target_column == "done":
             task["finished_at"] = now
         self._data[target_column].append(task)
+        self._record_transition(
+            task["id"], task.get("name", ""), from_column, target_column
+        )
         self.persist()
         return True
 
@@ -131,6 +147,14 @@ class BoardService:
         """Obtiene una tarea por id. Retorna None si no existe."""
         return self._find_task(task_id)
 
+    def get_task_column(self, task_id: str) -> str | None:
+        """Columna donde está la tarea. Retorna None si no existe."""
+        for col in COLUMNS:
+            for t in self._data[col]:
+                if t.get("id") == task_id:
+                    return col
+        return None
+
     def get_tasks_with_timestamps(self) -> list[dict[str, Any]]:
         """Todas las tareas con started_at y finished_at para exportación."""
         result = []
@@ -139,6 +163,7 @@ class BoardService:
                 if isinstance(t, dict) and t.get("id"):
                     result.append({
                         "task_id": t["id"],
+                        "ticket": t.get("ticket", ""),
                         "task_name": t.get("name", ""),
                         "started_at": t.get("started_at") or "",
                         "finished_at": t.get("finished_at") or "",
@@ -174,3 +199,22 @@ class BoardService:
 
     def _can_add_to(self, column_key: str) -> bool:
         return self.can_add_to(column_key)
+
+    def _record_transition(
+        self,
+        task_id: str,
+        task_name: str,
+        from_column: str | None,
+        to_column: str,
+    ) -> None:
+        transitions = self._data.get("transitions")
+        if not isinstance(transitions, list):
+            self._data["transitions"] = []
+            transitions = self._data["transitions"]
+        transitions.append({
+            "task_id": task_id,
+            "task_name": task_name,
+            "from_column": from_column,
+            "to_column": to_column,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })

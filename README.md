@@ -31,6 +31,8 @@ python3 main.py
 
 ```bash
 pytest tests/ -v
+# o
+python -m scripts.run_tests
 ```
 
 ---
@@ -106,7 +108,12 @@ deepflow/
 ├── ui/window.py           # MonoFlowWindow (standalone TaskBoard)
 ├── ui/style_loader.py     # Carga de estilos
 │
-└── export_transitions.py   # Exportar tareas (started_at, finished_at) a CSV
+├── scripts/               # Pipeline y despliegue
+│   ├── export_transitions.py  # Exportar tareas a CSV
+│   └── run_tests.py       # Ejecutar tests
+│
+├── monoflow_db.fs         # Base ZODB (embebida)
+└── monoflow_db.json       # Legacy (migrado a .fs si existe)
 ```
 
 ### Separación lógica/UI (Puertos y Adaptadores)
@@ -120,34 +127,24 @@ deepflow/
 
 ## Persistencia
 
-### Archivo `monoflow_db.json`
+### ZODB (`monoflow_db.fs`)
 
-```json
-{
-  "backlog": [
-    { "id": "uuid", "name": "Nombre o contenido de la tarea" }
-  ],
-  "todo": [],
-  "in_progress": [],
-  "done": [
-    { "id": "uuid", "name": "Tarea", "started_at": "2026-03-13T01:20:00+00:00", "finished_at": "2026-03-13T02:00:00+00:00" }
-  ],
-  "detenido": []
-}
-```
-
-- **Tareas**: `id` (UUID) y `name` (texto; puede ser multilínea).
-- **started_at**: Primera vez que la tarea llega a *In Progress* (ISO 8601 UTC).
-- **finished_at**: Última vez que la tarea llega a *Done* (ISO 8601 UTC).
+- **Base de datos embebida**: ZODB (Zope Object Database), archivo `monoflow_db.fs`.
+- **Versionado**: `schema_version` en root para migraciones futuras (ver `adapters/persistence/schema_versions.py`).
+- **Migración desde JSON**: Si existe `monoflow_db.json` y no existe `.fs`, se migra automáticamente.
 
 ### Exportar tareas a CSV
 
 ```bash
-python export_transitions.py                    # Salida: monoflow_tasks.csv
-python export_transitions.py -o mis_datos.csv   # Archivo personalizado
+python -m scripts.export_transitions                    # Salida: monoflow_tasks.csv
+python -m scripts.export_transitions -o mis_datos.csv   # Archivo personalizado
 ```
 
 Campos del CSV: `task_id`, `task_name`, `started_at`, `finished_at`.
+
+### Scripts de pipeline
+
+Ver **[scripts/README.md](scripts/README.md)** para migraciones, exportar y tests.
 
 ---
 
@@ -188,7 +185,8 @@ Organizada por módulos. Ver **[docs/README.md](docs/README.md)** para el índic
 |---------|---------|
 | **Módulos** | [Widget](docs/modulos/widget/README.md) · [TaskBoard](docs/modulos/taskboard/README.md) · [Reports](docs/modulos/reports/README.md) · [Alerts](docs/modulos/alerts/README.md) |
 | **API** | [TaskBoard API](docs/modulos/taskboard/API.md) |
-| **Arquitectura** | [Arquitectura](docs/arquitectura.md) · [Infraestructura](docs/infraestructura.md) · [Validación crecimiento](docs/validacion-crecimiento.md) |
+| **Arquitectura** | [Arquitectura](docs/arquitectura.md) · [Desarrollo](docs/DESARROLLO.md) · [Infraestructura](docs/infraestructura.md) |
+| **Base de datos** | [Versionado y migraciones](docs/VERSIONADO_BASE_DATOS.md) |
 
 ## Compatibilidad
 

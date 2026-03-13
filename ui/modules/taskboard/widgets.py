@@ -184,6 +184,7 @@ class TaskCard(QFrame):
         on_move,
         on_click=None,
         entered_at: str | None = None,
+        ticket: str = "",
         parent=None,
     ):
         super().__init__(parent)
@@ -196,8 +197,12 @@ class TaskCard(QFrame):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setContentsMargins(6, 3, 6, 3)
 
+        if ticket:
+            ticket_label = QLabel(ticket)
+            ticket_label.setObjectName("taskTicket")
+            layout.addWidget(ticket_label, 0)
         self.name_label = QLabel(name)
         self.name_label.setObjectName("taskName")
         self.name_label.setWordWrap(True)
@@ -212,7 +217,7 @@ class TaskCard(QFrame):
         layout.addWidget(self.duration_label)
 
         self.setAcceptDrops(True)
-        self.setMinimumHeight(32)
+        self.setMinimumHeight(36)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasText() and event.mimeData().text().startswith("monoflow:"):
@@ -291,8 +296,8 @@ class ColumnWidget(QWidget):
         self.setAcceptDrops(True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
 
         header = _ColumnHeader(
             column_key, on_move,
