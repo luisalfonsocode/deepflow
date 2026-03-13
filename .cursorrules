@@ -1,0 +1,34 @@
+# MonoFlow - Reglas del Proyecto
+
+## Principios Fundamentales
+
+1. **Finalizar sobre Empezar**
+   - Priorizar siempre completar tareas existentes antes de iniciar nuevas.
+   - El flujo de valor se mide en entregas, no en acumulación de trabajo.
+
+2. **Simplicidad en la Captura**
+   - Prohibir la creación de campos de descripción o campos adicionales.
+   - Únicamente el nombre de la tarea es sagrado y obligatorio.
+   - Una tarea = un nombre. Nada más.
+
+3. **Límite WIP Inviolable**
+   - Todas las columnas tienen un límite máximo de 3 tareas.
+   - Cualquier refactorización, feature o cambio debe respetar este límite.
+   - La validación del límite WIP es lógica crítica de negocio.
+
+## Convenciones Técnicas
+
+- Framework: PyQt6
+- Persistencia: monoflow_db.json (formato JSON local)
+- Python: 3.10+
+- Ventana: Sin bordes, Always on Top, minimalista
+
+## Estructura de Columnas (Kanban)
+
+| Columna      | Función                    | Especial               |
+|--------------|----------------------------|------------------------|
+| Backlog      | Entrada inicial (+ / Ctrl+V)| WIP Limit = 3         |
+| To Do        | Selección para sesión      | WIP Limit = 3          |
+| In Progress  | Trabajo activo             | WIP Limit = 3          |
+| Done         | Finalizadas                | WIP Limit = 3, opacidad|
+| Detenido     | Bloqueadas                 | WIP Limit = 3, ámbar   |
