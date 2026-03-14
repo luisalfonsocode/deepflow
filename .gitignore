@@ -1,13 +1,14 @@
 # Config local (opcional: copiar deepflow.yaml.example y personalizar)
-# deepflow.local.yaml
+config/yaml/deepflow.local.yaml
+*.local.yaml
 
 # Base de datos (data/db/)
-data/db/deepflow_db.fs
-data/db/deepflow_db.fs.index
-data/db/deepflow_db.fs.lock
-data/db/deepflow_db.fs.tmp
-data/db/deepflow_db.db
-data/db/deepflow_db.json
+data/db/*.fs
+data/db/*.fs.index
+data/db/*.fs.lock
+data/db/*.fs.tmp
+data/db/*.db
+data/db/*.json
 
 # Legacy en raíz (por si acaso)
 deepflow_db.fs
@@ -29,12 +30,35 @@ __pycache__/
 .venv/
 venv/
 env/
+*.egg-info/
+.eggs/
+
+# Build (PyInstaller)
+build/
+dist/
+
+# PyInstaller spec (generado por build_dist.py)
+script/*.spec
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+data/*.log
+
+# Variables de entorno (si se añaden)
+.env
+.env.local
 
 # IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
