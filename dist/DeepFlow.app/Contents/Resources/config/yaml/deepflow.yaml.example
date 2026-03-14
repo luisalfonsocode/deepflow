@@ -1,0 +1,14 @@
+# DeepFlow – Plantilla de configuración
+# Copiar a deepflow.yaml y ajustar valores
+
+environment: local
+
+# Directorio base de datos
+data_dir: ./data
+
+# Producción: rutas absolutas
+# environment: production
+# data_dir: /var/lib/deepflow
+
+# Opcional: ruta explícita del archivo ZODB
+# db_path: /var/lib/deepflow/deepflow_db.fs

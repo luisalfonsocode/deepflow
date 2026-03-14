@@ -1,0 +1,6 @@
+# DeepFlow – Configuración de producción
+# La base de datos se crea en ./data junto al ejecutable
+
+environment: production
+data_dir: ./data
+# db_path: ./data/db/deepflow_db.fs  # opcional, explícito

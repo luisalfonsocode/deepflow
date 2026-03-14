@@ -9,12 +9,17 @@ import sys
 # Reducir avisos de Qt/macOS (fuentes, IMK)
 os.environ.setdefault("QT_MAC_WANTS_LAYER", "1")
 
+from config.logging_config import setup_logging
+
+setup_logging()
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication
 
-from ui.modules.widget import MainShell
-from ui.style_loader import load_styles
+from presentation.composition import create_board_service, create_clipboard_provider
+from presentation.modules.widget import MainShell
+from presentation.style_loader import load_styles
 
 
 def main():
@@ -34,7 +39,12 @@ def main():
     palette.setColor(QPalette.ColorRole.Highlight, QColor("#2563eb"))
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
     app.setPalette(palette)
-    shell = MainShell()
+
+    board = create_board_service()
+    clipboard = create_clipboard_provider()
+    shell = MainShell(board_service=board, clipboard_provider=clipboard)
+    app.aboutToQuit.connect(board.shutdown)
+
     shell.setObjectName("mainWindow")
     shell.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
     shell.show()

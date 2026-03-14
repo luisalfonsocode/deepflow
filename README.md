@@ -4,17 +4,38 @@ Widget de escritorio para captura sin fricción y gestión de límites WIP (Work
 
 ---
 
+## Índice
+
+- [Requisitos](#requisitos)
+- [Instalación](#instalacion)
+- [Ejecución](#ejecucion)
+- [Tests](#tests)
+- [Características](#caracteristicas)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Arquitectura Clean](#arquitectura-clean)
+- [Persistencia](#persistencia)
+- [Atajos de teclado](#atajos-de-teclado)
+- [Tema visual](#tema-visual)
+- [Principios del proyecto](#principios-del-proyecto)
+- [Documentación](#documentacion)
+- [Compatibilidad](#compatibilidad)
+
+---
+
+<a id="requisitos"></a>
 ## Requisitos
 
 - **Python** 3.10+
 - **PyQt6** ≥ 6.4.0
 
+<a id="instalacion"></a>
 ## Instalación
 
 ```bash
 pip install -r requirements.txt
 ```
 
+<a id="ejecucion"></a>
 ## Ejecución
 
 ```bash
@@ -27,16 +48,16 @@ En macOS, si es necesario:
 python3 main.py
 ```
 
+<a id="tests"></a>
 ## Tests
 
 ```bash
 pytest tests/ -v
-# o
-python -m scripts.run_tests
 ```
 
 ---
 
+<a id="caracteristicas"></a>
 ## Características
 
 ### Tablero Kanban (5 columnas)
@@ -80,74 +101,111 @@ Cuando una columna supera el límite de 3 tareas:
 
 ---
 
+<a id="estructura-del-proyecto"></a>
 ## Estructura del proyecto
+
+Ver **[docs/codigo/estructura.md](docs/codigo/estructura.md)** para el mapa completo de archivos y distribución.
 
 ```
 deepflow/
 ├── main.py                 # Punto de entrada
+├── export_transitions.py   # Exportar tareas a CSV
 ├── requirements.txt        # Dependencias
-├── monoflow_db.json       # Datos persistentes (generado automáticamente)
-├── styles.qss             # Estilos (tema oscuro)
-│
-├── core/modules/           # Lógica de negocio por módulo
-│   ├── widget/            # Registro de funcionalidades
-│   ├── taskboard/         # Kanban: creación, modificación, consulta
-│   ├── reports/           # (en desarrollo)
-│   └── alerts/            # (en desarrollo)
-│
-├── adapters/               # Implementaciones
-│   └── persistence/       # JsonFileBoardRepository, json_file
-│
-├── ui/modules/             # Interfaz por módulo
-│   ├── widget/            # MainShell, ModuleCard (lista de módulos)
-│   ├── taskboard/         # TaskBoardView, widgets Kanban
-│   ├── reports/           # ReportsView (en desarrollo)
-│   └── alerts/            # AlertsView (en desarrollo)
-│
-├── ui/widgets.py          # TitleBar (compartido)
-├── ui/window.py           # MonoFlowWindow (standalone TaskBoard)
-├── ui/style_loader.py     # Carga de estilos
-│
-├── scripts/               # Pipeline y despliegue
-│   ├── export_transitions.py  # Exportar tareas a CSV
-│   └── run_tests.py       # Ejecutar tests
-│
-├── monoflow_db.fs         # Base ZODB (embebida)
-└── monoflow_db.json       # Legacy (migrado a .fs si existe)
+├── styles.qss              # Estilos (tema claro)
+├── data/                   # Datos persistentes
+│   ├── db/                 # Base de datos ZODB
+│   │   ├── deepflow_db.fs  # ZODB (generada en runtime)
+│   │   └── deepflow_db.json   # Legacy (migrado a .fs si existe)
+│   ├── DIAGRAMA_BASE_DATOS.md
+│   └── README.md
+├── domain/                 # Capa de dominio
+├── application/            # Capa de aplicación (casos de uso)
+├── infrastructure/         # Capa de infraestructura
+├── presentation/           # Capa de presentación (PyQt6)
+├── tests/
+└── docs/
 ```
-
-### Separación lógica/UI (Puertos y Adaptadores)
-
-- **core/modules/taskboard/**: Puertos (BoardRepository), servicios (BoardService).
-- **adapters/persistence**: JsonFileBoardRepository (JSON local). Futuro: ApiBoardRepository.
-- **ui/**: Componentes visuales. Recibe callbacks; puede intercambiarse.
-- **styles.qss**: Permite cambiar el tema sin modificar lógica.
 
 ---
 
+<a id="arquitectura-clean"></a>
+## Arquitectura Clean
+
+El proyecto sigue **Clean Architecture** con cuatro capas:
+
+| Capa | Carpeta | Contenido |
+|------|---------|-----------|
+| **Domain** | `domain/` | Entidades, reglas de negocio, constantes (COLUMNS, maestros, utils) |
+| **Application** | `application/` | Casos de uso (BoardService, ExportService), puertos (BoardRepository) |
+| **Infrastructure** | `infrastructure/` | Persistencia ZODB/JSON, exportación Excel, adaptador clipboard Qt |
+| **Presentation** | `presentation/` | UI PyQt6, composition root, presenters |
+
+### Estructura detallada
+
+```
+domain/
+└── taskboard/
+    ├── constants.py    # COLUMNS, WIP_LIMIT_PER_COLUMN
+    ├── masters.py      # Maestros (origen, tribu, kanban)
+    └── utils.py        # col_key_to_display, format_*, compute_time_in_columns
+
+application/
+├── ports/
+│   └── board_repository.py   # Puerto de persistencia
+├── taskboard/
+│   └── board_service.py      # BoardService (CRUD tablero)
+└── reports/
+    └── export_service.py    # ExportService (datos para reportes)
+
+infrastructure/
+├── persistence/              # ZODBBoardRepository, migraciones, schema_versions
+├── export/                  # ExcelActivityExporter
+└── ui/                      # QtClipboardProvider
+
+presentation/
+├── composition.py           # Composition root: create_board_service()
+├── config/modules_registry.py   # MODULES (TaskBoard, Reports, Alerts)
+├── presenters/
+├── ports/
+├── theme/
+├── style_loader.py
+└── modules/
+    ├── widget/              # MainShell, HeaderBar, InProgressCompact
+    ├── taskboard/           # TaskBoardView, dialogs, widgets
+    ├── reports/             # ReportsView
+    └── alerts/              # AlertsView
+```
+
+### Reglas de dependencia
+
+- **domain** → Sin dependencias externas
+- **application** → Depende de `domain`, define puertos
+- **infrastructure** → Implementa puertos, depende de `domain`
+- **presentation** → Depende de `application` e `infrastructure`
+
+---
+
+<a id="persistencia"></a>
 ## Persistencia
 
-### ZODB (`monoflow_db.fs`)
+### ZODB (`data/db/deepflow_db.fs`)
 
-- **Base de datos embebida**: ZODB (Zope Object Database), archivo `monoflow_db.fs`.
-- **Versionado**: `schema_version` en root para migraciones futuras (ver `adapters/persistence/schema_versions.py`).
-- **Migración desde JSON**: Si existe `monoflow_db.json` y no existe `.fs`, se migra automáticamente.
+- **Base de datos embebida**: ZODB (Zope Object Database), archivo `data/db/deepflow_db.fs`.
+- **Versionado**: `schema_version` en root para migraciones futuras (ver `infrastructure/persistence/schema_versions.py`).
+- **Migración desde JSON**: Si existe `deepflow_db.json` o `monoflow_db.json` (en `data/` o raíz) y no existe `data/db/deepflow_db.fs`, se migra automáticamente.
 
 ### Exportar tareas a CSV
 
 ```bash
-python -m scripts.export_transitions                    # Salida: monoflow_tasks.csv
-python -m scripts.export_transitions -o mis_datos.csv   # Archivo personalizado
+python export_transitions.py                    # Salida: deepflow_tasks.csv
+python export_transitions.py -o mis_datos.csv   # Archivo personalizado
 ```
 
-Campos del CSV: `task_id`, `task_name`, `started_at`, `finished_at`.
-
-### Scripts de pipeline
-
-Ver **[scripts/README.md](scripts/README.md)** para migraciones, exportar y tests.
+Campos del CSV: `task_id`, `ticket`, `task_name`, `started_at`, `finished_at`.
 
 ---
 
+<a id="atajos-de-teclado"></a>
 ## Atajos de teclado
 
 | Atajo    | Acción                                      |
@@ -158,17 +216,21 @@ Ver **[scripts/README.md](scripts/README.md)** para migraciones, exportar y test
 
 ---
 
-## Paleta de colores (tema oscuro)
+<a id="tema-visual"></a>
+## Tema visual
+
+Tema claro con paleta Slate + azul:
 
 | Uso     | Código   |
 |---------|----------|
-| Fondo   | `#1e1e1e` |
-| Acento  | `#007acc` |
+| Fondo   | `#f8fafc` |
+| Acento  | `#2563eb` |
 | Alerta  | `#ff4444` |
-| Detenido| `#ff9800` |
+| Detenido| `#f59e0b` |
 
 ---
 
+<a id="principios-del-proyecto"></a>
 ## Principios del proyecto (.cursorrules)
 
 1. **Finalizar sobre Empezar**: Priorizar completar tareas antes de iniciar nuevas.
@@ -177,17 +239,19 @@ Ver **[scripts/README.md](scripts/README.md)** para migraciones, exportar y test
 
 ---
 
+<a id="documentacion"></a>
 ## Documentación
 
 Organizada por módulos. Ver **[docs/README.md](docs/README.md)** para el índice completo.
 
 | Sección | Enlaces |
 |---------|---------|
-| **Módulos** | [Widget](docs/modulos/widget/README.md) · [TaskBoard](docs/modulos/taskboard/README.md) · [Reports](docs/modulos/reports/README.md) · [Alerts](docs/modulos/alerts/README.md) |
-| **API** | [TaskBoard API](docs/modulos/taskboard/API.md) |
-| **Arquitectura** | [Arquitectura](docs/arquitectura.md) · [Desarrollo](docs/DESARROLLO.md) · [Infraestructura](docs/infraestructura.md) |
-| **Base de datos** | [Versionado y migraciones](docs/VERSIONADO_BASE_DATOS.md) |
+| **Estructura** | [Mapa del proyecto](docs/codigo/estructura.md) – Distribución de archivos y módulos |
+| **Módulos** | [Widget](docs/codigo/modulos/widget/README.md) · [TaskBoard](docs/codigo/modulos/taskboard/README.md) · [Reports](docs/codigo/modulos/reports/README.md) · [Alerts](docs/codigo/modulos/alerts/README.md) |
+| **API** | [TaskBoard API](docs/codigo/modulos/taskboard/API.md) |
+| **Arquitectura** | [Clean Architecture](docs/codigo/arquitectura-clean.md) · [Arquitectura técnica](docs/codigo/arquitectura-tecnica.md) · [Desarrollo](docs/codigo/desarrollo.md) · [Infraestructura](docs/codigo/infraestructura.md) · [Versionado BD](docs/codigo/versionado-base-datos.md) |
 
+<a id="compatibilidad"></a>
 ## Compatibilidad
 
 - **Windows**: Objetivo principal.

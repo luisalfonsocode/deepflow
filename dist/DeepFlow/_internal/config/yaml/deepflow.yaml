@@ -1,0 +1,10 @@
+# DeepFlow – Configuración
+# Editar según entorno (local / producción)
+
+environment: local
+
+# Directorio base de datos. Dentro se crea db/deepflow_db.fs
+data_dir: ./data
+
+# Opcional: ruta explícita del archivo ZODB (ignora data_dir para la BD)
+# db_path: ./data/db/deepflow_db.fs

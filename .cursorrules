@@ -19,7 +19,8 @@
 ## Convenciones Técnicas
 
 - Framework: PyQt6
-- Persistencia: monoflow_db.json (formato JSON local)
+- Arquitectura: Clean Architecture (domain, application, infrastructure, presentation)
+- Persistencia: ZODB en data/db/deepflow_db.fs (migración desde JSON si existe)
 - Python: 3.10+
 - Ventana: Sin bordes, Always on Top, minimalista
 

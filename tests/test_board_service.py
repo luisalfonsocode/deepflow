@@ -5,8 +5,8 @@ Ejecutar: pytest tests/test_board_service.py -v
 
 import pytest
 
-from core.modules.taskboard.constants import COLUMNS, WIP_LIMIT_PER_COLUMN
-from core.modules.taskboard.services import BoardService
+from domain.taskboard.constants import COLUMNS, WIP_LIMIT_PER_COLUMN
+from application.taskboard import BoardService
 
 from tests.conftest import InMemoryBoardRepository
 
@@ -269,7 +269,7 @@ def test_load_recarga_datos(empty_repo):
     """load recarga los datos del repositorio."""
     svc = BoardService(empty_repo)
     svc.create_task("A")
-    empty_repo._data["backlog"] = []
+    empty_repo._data["columns"]["backlog"] = []
     svc.load()
     assert len(svc.data["backlog"]) == 0
 
