@@ -4,21 +4,33 @@ import sys
 from pathlib import Path
 
 
-def _get_app_root() -> Path:
-    """Raíz de la aplicación: directorio del exe (producción) o del proyecto (desarrollo).
-    En macOS .app: usa Contents/Resources donde PyInstaller pone config y styles.
+def _get_resource_root() -> Path:
+    """Dónde buscar recursos empaquetados (styles.qss, config/).
+    PyInstaller 6+ en Windows/Linux: usa _internal (sys._MEIPASS).
+    macOS .app: Contents/Resources.
     """
     if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            return Path(sys._MEIPASS).resolve()
         exe = Path(sys.executable).resolve()
-        # macOS .app: exe está en App.app/Contents/MacOS/; recursos en Contents/Resources
         if sys.platform == "darwin" and "Contents/MacOS" in str(exe):
             return (exe.parent.parent / "Resources").resolve()
         return exe.parent
     return Path(__file__).parent.parent
 
 
-# Raíz del proyecto (config/ está en la raíz)
-PROJECT_ROOT = _get_app_root()
+def _get_exe_dir() -> Path:
+    """Directorio del ejecutable. Para data_dir (./data) y datos de usuario."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).parent.parent
+
+
+# Recursos empaquetados (estilos, config YAML)
+RESOURCE_ROOT = _get_resource_root()
+
+# Directorio del exe / proyecto. Base para data_dir y rutas relativas.
+PROJECT_ROOT = _get_exe_dir()
 
 # Entornos soportados
 ENV_LOCAL = "local"

@@ -11,20 +11,34 @@ from config.base import (
     ENV_LOCAL,
     ENV_PRODUCTION,
     PROJECT_ROOT,
+    RESOURCE_ROOT,
 )
 
-# YAML: en producción junto al exe (config/yaml/deepflow.yaml)
-CONFIG_DIR = PROJECT_ROOT / "config" / "yaml"
-CONFIG_PATH = CONFIG_DIR / "deepflow.yaml"
+# YAML: buscar en exe_dir primero (donde build crea deepflow.yaml), luego en recursos
+CONFIG_DIRS = [
+    PROJECT_ROOT / "config" / "yaml",  # exe dir (build_dist crea aquí en Windows)
+    RESOURCE_ROOT / "config" / "yaml",  # _internal (PyInstaller --add-data)
+]
+CONFIG_PATH = CONFIG_DIRS[0] / "deepflow.yaml"
+
+
+def _find_config_path() -> Path | None:
+    """Ruta a deepflow.yaml si existe en alguna ubicación conocida."""
+    for d in CONFIG_DIRS:
+        p = d / "deepflow.yaml"
+        if p.exists():
+            return p
+    return None
 
 
 def _load_config() -> dict:
     """Carga deepflow.yaml. Retorna dict vacío si no existe o hay error."""
-    if not CONFIG_PATH.exists():
+    cfg_path = _find_config_path()
+    if not cfg_path:
         return {}
     try:
         import yaml
-        with open(CONFIG_PATH, encoding="utf-8") as f:
+        with open(cfg_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return data if isinstance(data, dict) else {}
     except Exception:
