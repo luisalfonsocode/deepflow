@@ -41,6 +41,11 @@ class InProgressCompact(QWidget):
         title.setObjectName("widgetHeaderTitle")
         header_layout.addWidget(title)
         header_layout.addStretch()
+        self._header_add_btn = QPushButton("+")
+        self._header_add_btn.setObjectName("compactCreateBtn")
+        self._header_add_btn.setToolTip("Nueva actividad")
+        self._header_add_btn.clicked.connect(self._on_add_task)
+        header_layout.addWidget(self._header_add_btn)
         self.summary_label = QLabel("0 activas · 0 detenidas")
         self.summary_label.setObjectName("widgetHeaderSummary")
         header_layout.addWidget(self.summary_label)
@@ -137,7 +142,9 @@ class InProgressCompact(QWidget):
         self._prog_count.setText(str(len(tasks_progress)))
         self._det_count.setText(str(len(tasks_detenidas)))
 
-        self._add_btn.setEnabled(self.board.can_add_to("in_progress"))
+        can_add = self.board.can_add_to("in_progress")
+        self._add_btn.setEnabled(can_add)
+        self._header_add_btn.setEnabled(can_add)
 
         for t in tasks_progress[:_MAX_TASKS_PER_SECTION]:
             row = CompactTaskRow(
