@@ -16,8 +16,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from datetime import datetime
+
 from application.taskboard import BoardService
 from domain.taskboard import COLUMNS, col_key_to_display
+from domain.taskboard.constants import TZ_APP
 
 # Etiquetas en español para columnas (usadas en el modal)
 _COL_LABEL_ES = {
@@ -641,6 +644,13 @@ class TaskDetailDialog(QDialog):
                     started_raw = self.started_at_edit.text().strip()
                     if started_raw and (iso_val := parse_date_to_iso(started_raw)):
                         self.board.update_task_started_at(self.task_id, iso_val)
+                # Si está en Done sin fecha de fin, asignarla
+                if target == "done":
+                    task = self.board.get_task(self.task_id)
+                    if not task.get("finished_at"):
+                        self.board.update_task_finished_at(
+                            self.task_id, datetime.now(TZ_APP).isoformat()
+                        )
             self.on_close_callback()
             self.accept()
             return

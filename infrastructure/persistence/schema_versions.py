@@ -6,6 +6,7 @@ Versionado de schema para ZODB.
   - schema_version 4: container deepflow, maestros, columns dict, Task campos
   - schema_version 5: maestros persistentes (tribu_squad, solicitante, canal_reporte)
   - schema_version 6: maestro categoria
+  - schema_version 7: backfill finished_at en tareas en Done
 """
 
 import logging
@@ -40,6 +41,8 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
         result = _migrate_v4_to_v5(result)
     if from_version < 6:
         result = _migrate_v5_to_v6(result)
+    if from_version < 7:
+        result = _migrate_v6_to_v7(result)
     LOG.debug("Migración de schema completada")
     return result
 
@@ -150,4 +153,18 @@ def _migrate_v5_to_v6(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-CURRENT_SCHEMA_VERSION = 6
+def _migrate_v6_to_v7(data: dict[str, Any]) -> dict[str, Any]:
+    """Migra a v7. Rellena finished_at en tareas en Done que no lo tienen."""
+    cols = data.get("columns") or {}
+    done_tasks = cols.get("done", [])
+    for task in done_tasks:
+        if isinstance(task, dict) and not task.get("finished_at"):
+            task["finished_at"] = (
+                task.get("entered_at")
+                or task.get("created_at")
+                or ""
+            )
+    return data
+
+
+CURRENT_SCHEMA_VERSION = 7
