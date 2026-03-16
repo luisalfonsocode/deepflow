@@ -23,7 +23,7 @@ KANBAN_COLUMNS: list[dict[str, Any]] = [
     {"key": "backlog", "label": "Backlog", "order": 1, "wip_limit": None},  # Sin límite: captura sin fricción
     {"key": "todo", "label": "To Do", "order": 2, "wip_limit": 3},
     {"key": "in_progress", "label": "In Progress", "order": 3, "wip_limit": 3},
-    {"key": "done", "label": "Done", "order": 4, "wip_limit": 3},
+    {"key": "done", "label": "Done", "order": 4, "wip_limit": None},  # Sin límite: finalizadas
     {"key": "detenido", "label": "Detenido", "order": 5, "wip_limit": 5},
 ]
 

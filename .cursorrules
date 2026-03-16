@@ -12,8 +12,8 @@
    - Una tarea = un nombre. Nada más.
 
 3. **Límite WIP Inviolable**
-   - Backlog: sin límite (captura sin fricción).
-   - To Do, In Progress, Done: límite 3. Detenido: límite 5.
+   - Backlog, Done: sin límite (captura y finalizadas).
+   - To Do, In Progress: límite 3. Detenido: límite 5.
    - La validación del límite WIP es lógica crítica de negocio.
 
 ## Convenciones Técnicas
@@ -31,5 +31,5 @@
 | Backlog      | Entrada inicial (+ / Ctrl+V)| Sin límite             |
 | To Do        | Selección para sesión      | WIP Limit = 3          |
 | In Progress  | Trabajo activo             | WIP Limit = 3          |
-| Done         | Finalizadas                | WIP Limit = 3, opacidad|
+| Done         | Finalizadas                | Sin límite, opacidad   |
 | Detenido     | Bloqueadas                 | WIP Limit = 5, ámbar   |
