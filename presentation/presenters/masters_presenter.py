@@ -12,6 +12,7 @@ MASTER_KEYS = {
     "tribu_squad": "Tribu y Squad",
     "solicitante": "Solicitante",
     "canal_reporte": "Canal de reporte",
+    "categoria": "Categoría",
 }
 
 

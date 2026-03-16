@@ -40,7 +40,8 @@ class TaskSummaryRow(QFrame):
             ticket_lbl.setObjectName("taskSummaryTicket")
             layout.addWidget(ticket_lbl, 0)
 
-        name_lbl = QLabel(name[:80] + ("..." if len(name) > 80 else name))
+        display_name = name[:50] + ("…" if len(name) > 50 else "")
+        name_lbl = QLabel(display_name)
         name_lbl.setObjectName("taskSummaryName")
         name_lbl.setWordWrap(True)
         layout.addWidget(name_lbl, 1)

@@ -34,6 +34,8 @@ def _legacy_to_v4(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _ensure_deepflow(root: Any) -> dict[str, Any]:
     schema_version = root.get("schema_version", 1)
+    if schema_version < CURRENT_SCHEMA_VERSION:
+        LOG.info("BD en schema v%d → migrará a v%d", schema_version, CURRENT_SCHEMA_VERSION)
     container = root.get("deepflow") or root.get("task") or root.get("board")
 
     if container is None:
@@ -65,13 +67,20 @@ def _ensure_deepflow(root: Any) -> dict[str, Any]:
             result["columns"][key] = []
 
     # Maestros v5: asegurar que existan
-    from domain.taskboard.masters import ORIGEN_OPTIONS, SOLICITANTE_OPTIONS, TRIBU_SQUAD_OPTIONS
+    from domain.taskboard.masters import (
+        CATEGORIA_OPTIONS,
+        ORIGEN_OPTIONS,
+        SOLICITANTE_OPTIONS,
+        TRIBU_SQUAD_OPTIONS,
+    )
     if "tribu_squad" not in result or not isinstance(result.get("tribu_squad"), list):
         result["tribu_squad"] = [dict(o) for o in TRIBU_SQUAD_OPTIONS]
     if "solicitante" not in result or not isinstance(result.get("solicitante"), list):
         result["solicitante"] = [dict(o) for o in SOLICITANTE_OPTIONS]
     if "canal_reporte" not in result or not isinstance(result.get("canal_reporte"), list):
         result["canal_reporte"] = [dict(o) for o in ORIGEN_OPTIONS]
+    if "categoria" not in result or not isinstance(result.get("categoria"), list):
+        result["categoria"] = [dict(o) for o in CATEGORIA_OPTIONS]
 
     return result
 
@@ -107,6 +116,7 @@ class ZODBBoardRepository:
                 "tribu_squad": copy.deepcopy(data.get("tribu_squad", [])),
                 "solicitante": copy.deepcopy(data.get("solicitante", [])),
                 "canal_reporte": copy.deepcopy(data.get("canal_reporte", [])),
+                "categoria": copy.deepcopy(data.get("categoria", [])),
             }
             root["deepflow"] = to_save
             transaction.commit()

@@ -5,8 +5,9 @@ Genera el ejecutable y la carpeta dist con archivos necesarios para producción.
 La app puede ejecutarse en otro directorio; la BDD se crea en ./data junto al exe.
 
 Uso:
-  python script/build_dist.py          # Build normal (sin consola)
+  python script/build_dist.py           # Build normal (sin consola)
   python script/build_dist.py --debug   # Build con consola visible (para ver errores)
+  python script/build_dist.py --update # Build + paquete de actualización (ZIP sin data/)
 """
 
 import argparse
@@ -153,6 +154,7 @@ def ensure_data_folder(app_name: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build DeepFlow")
     parser.add_argument("--debug", action="store_true", help="Build con consola visible (para ver errores)")
+    parser.add_argument("--update", action="store_true", help="Generar además paquete de actualización (ZIP)")
     args = parser.parse_args()
 
     print("=== Build DeepFlow ===\n")
@@ -161,6 +163,10 @@ def main() -> None:
     copy_production_config(app_name)
     create_dist_readme(app_name)
     ensure_data_folder(app_name)
+
+    if args.update:
+        print("\n--- Paquete de actualización ---")
+        subprocess.check_call([sys.executable, str(PROJECT_ROOT / "script" / "build_update_package.py")])
 
     app_folder = DIST_DIR / app_name
     print(f"\nListo. Salida en: {DIST_DIR}")

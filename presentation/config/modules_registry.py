@@ -53,7 +53,7 @@ MODULES = [
     {
         "id": "masters",
         "title": "Maestros",
-        "desc": "Tribu, Solicitante, Canal de reporte",
+        "desc": "Tribu, Solicitante, Canal de reporte, Categoría",
         "icon": "⚙️",
         "enabled": True,
         "factory": _masters_factory,

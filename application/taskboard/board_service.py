@@ -99,6 +99,7 @@ class BoardService:
             "tribe_and_squad": "",
             "solicitante": "",
             "origen": "",
+            "categoria": "",
             "prioridad": False,
             "detalle": "",
             "due_date": "",
@@ -188,6 +189,14 @@ class BoardService:
         if not task:
             return False
         task["prioridad"] = bool(value)
+        self.persist()
+        return True
+
+    def update_task_categoria(self, task_id: str, value: str) -> bool:
+        task = self._find_task(task_id)
+        if not task:
+            return False
+        task["categoria"] = value.strip()
         self.persist()
         return True
 

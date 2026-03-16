@@ -111,6 +111,7 @@ class TaskBoardView(QWidget):
                     on_click=self._on_task_click,
                     entered_at=t.get("entered_at"),
                     ticket=t.get("ticket", ""),
+                    prioridad=bool(t.get("prioridad", False)),
                     parent=cw.tasks_widget,
                 )
                 cw.tasks_layout.insertWidget(cw.tasks_layout.count() - 1, card)

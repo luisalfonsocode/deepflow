@@ -131,18 +131,76 @@ def format_date_display(iso_string: str | None) -> str:
         return "-"
 
 
+def iso_to_dd_mm_yyyy(iso_string: str | None) -> str:
+    """Convierte ISO a dd/mm/yyyy para edición."""
+    if not iso_string:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        if dt.tzinfo:
+            dt = dt.astimezone(TZ_APP)
+        else:
+            dt = dt.replace(tzinfo=TZ_APP)
+        return f"{dt.day:02d}/{dt.month:02d}/{dt.year}"
+    except (ValueError, TypeError):
+        return ""
+
+
+def iso_to_dd_mm_yyyy_hh_mm(iso_string: str | None) -> str:
+    """Convierte ISO a dd/mm/yyyy HH:mm para edición (fecha + hora)."""
+    if not iso_string:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        if dt.tzinfo:
+            dt = dt.astimezone(TZ_APP)
+        else:
+            dt = dt.replace(tzinfo=TZ_APP)
+        return f"{dt.day:02d}/{dt.month:02d}/{dt.year} {dt.hour:02d}:{dt.minute:02d}"
+    except (ValueError, TypeError):
+        return ""
+
+
 def parse_date_to_iso(text: str) -> str | None:
     """
     Parsea texto a ISO 8601. Acepta:
+    - dd/mm/yyyy o dd-mm-yyyy (ej: 13/03/2026)
+    - dd/mm/yyyy HH:mm (ej: 13/03/2026 14:30)
     - '13 Mar 2026' (formato display)
     - '2026-03-13'
     - '2026-03-13T10:30:00'
-    Retorna ISO con timezone GMT-5 y hora 12:00:00 si solo se da fecha; None si falla.
+    Retorna ISO con timezone GMT-5; hora 12:00 si solo fecha, HH:mm si se indica.
     """
     t = (text or "").strip()
     if not t:
         return None
-    raw = t[:19] if len(t) > 19 else t
+    raw = t[:25] if len(t) > 25 else t
+    # Formato dd/mm/yyyy HH:mm o dd/mm/yyyy
+    hour, minute = 12, 0
+    date_part = raw
+    if " " in raw:
+        parts_space = raw.split(None, 1)
+        date_part = parts_space[0]
+        if len(parts_space) >= 2 and ":" in parts_space[1]:
+            try:
+                time_str = parts_space[1].strip()[:5]
+                h, m = map(int, time_str.split(":"))
+                if 0 <= h <= 23 and 0 <= m <= 59:
+                    hour, minute = h, m
+            except (ValueError, TypeError):
+                pass
+    for sep in ("/", "-"):
+        if sep in date_part and date_part.count(sep) >= 2:
+            p = date_part.split(sep)
+            if len(p) >= 3:
+                try:
+                    d, m, y = int(p[0]), int(p[1]), int(p[2])
+                    if 1 <= d <= 31 and 1 <= m <= 12 and 1900 <= y <= 2100:
+                        dt = datetime(y, m, d, hour, minute, 0, tzinfo=TZ_APP)
+                        return dt.isoformat()
+                except (ValueError, TypeError, IndexError):
+                    pass
+            break
     # Formato "13 Mar 2026" (DD Mon YYYY)
     parts = raw.split()
     if len(parts) >= 3:

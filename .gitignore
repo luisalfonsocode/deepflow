@@ -36,6 +36,7 @@ env/
 # Build (PyInstaller)
 build/
 dist/
+dist/*-update.zip
 
 # PyInstaller spec (generado por build_dist.py)
 script/*.spec

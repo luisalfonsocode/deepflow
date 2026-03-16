@@ -157,6 +157,7 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         on_click=None,
         entered_at: str | None = None,
         ticket: str = "",
+        prioridad: bool = False,
         parent=None,
     ):
         super().__init__(parent)
@@ -166,16 +167,22 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         self.on_click = on_click
         self.setObjectName(ObjectNames.TASK_CARD)
         self.setProperty("column", column_key)
+        self.setProperty("prioridad", "true" if prioridad else "false")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(6, 3, 6, 3)
 
+        if prioridad:
+            prioridad_label = QLabel("⭐")
+            prioridad_label.setObjectName("taskPriority")
+            layout.addWidget(prioridad_label, 0)
         if ticket:
             ticket_label = QLabel(ticket)
             ticket_label.setObjectName("taskTicket")
             layout.addWidget(ticket_label, 0)
-        self.name_label = QLabel(name)
+        display_name = name[:50] + ("…" if len(name) > 50 else "")
+        self.name_label = QLabel(display_name)
         self.name_label.setObjectName("taskName")
         self.name_label.setWordWrap(True)
         self.name_label.setMaximumHeight(120)

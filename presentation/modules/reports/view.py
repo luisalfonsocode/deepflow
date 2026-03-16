@@ -438,7 +438,7 @@ class ReportsView(QWidget):
                 if self._presenter.update_task_created_at(task_id, iso_val):
                     self._refresh()
             elif val:
-                QMessageBox.warning(self, "Fecha inválida", "Formato: 13 Mar 2026 o 2026-03-13")
+                QMessageBox.warning(self, "Fecha inválida", "Formato: dd/mm/aaaa (ej: 13/03/2026)")
         elif col == 3:
             val = self.table_tareas.item(row, 3).text().strip()
             iso_val = parse_date_to_iso(val) if val and val != "-" else ""
@@ -446,7 +446,7 @@ class ReportsView(QWidget):
                 if self._presenter.update_task_started_at(task_id, iso_val):
                     self._refresh()
             elif val:
-                QMessageBox.warning(self, "Fecha inválida", "Formato: 13 Mar 2026 o 2026-03-13")
+                QMessageBox.warning(self, "Fecha inválida", "Formato: dd/mm/aaaa (ej: 13/03/2026)")
         elif col == 4:
             val = self.table_tareas.item(row, 4).text().strip()
             iso_val = parse_date_to_iso(val) if val and val != "-" else ""
@@ -454,7 +454,7 @@ class ReportsView(QWidget):
                 if self._presenter.update_task_finished_at(task_id, iso_val):
                     self._refresh()
             elif val:
-                QMessageBox.warning(self, "Fecha inválida", "Formato: 13 Mar 2026 o 2026-03-13")
+                QMessageBox.warning(self, "Fecha inválida", "Formato: dd/mm/aaaa (ej: 13/03/2026)")
         elif col == 5:
             val = self.table_tareas.item(row, 5).text().strip()
             iso_val = parse_date_to_iso(val) if val and val != "-" else ""
@@ -462,7 +462,7 @@ class ReportsView(QWidget):
                 if self._presenter.update_task_due_date(task_id, iso_val):
                     self._refresh()
             elif val:
-                QMessageBox.warning(self, "Fecha inválida", "Formato: 13 Mar 2026 o 2026-03-13")
+                QMessageBox.warning(self, "Fecha inválida", "Formato: dd/mm/aaaa (ej: 13/03/2026)")
         elif col == 6:
             val = self.table_tareas.item(row, 6).text()
             if self._presenter.update_task_ticket(task_id, val):

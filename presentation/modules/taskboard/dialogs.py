@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFrame,
@@ -31,6 +32,9 @@ from domain.taskboard.utils import (
     format_date_display,
     format_duration_in_activity,
     format_seconds_duration,
+    iso_to_dd_mm_yyyy,
+    iso_to_dd_mm_yyyy_hh_mm,
+    parse_date_to_iso,
 )
 from presentation.style_loader import load_styles
 from presentation.theme import Layout
@@ -56,25 +60,18 @@ class _SubtaskCheckButton(QPushButton):
         self.style().polish(self)
 
 
-class _SubtaskLabel(QLabel):
-    """Label clickeable, una sola línea: al hacer clic marca/desmarca la subtarea."""
+class _SubtaskEdit(QLineEdit):
+    """Campo editable para el nombre de la subtarea."""
 
-    def __init__(self, text: str, done: bool, on_toggle):
-        display = (text[:50] + "…") if len(text) > 50 else text
-        super().__init__(display)
-        self.on_toggle = on_toggle
-        self.setWordWrap(False)
-        self.setMaximumHeight(24)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+    def __init__(self, text: str, done: bool, on_text_changed):
+        super().__init__(text[:200] if text else "")
+        self.setPlaceholderText("Nombre de la subtarea")
+        self.setMaxLength(200)
+        self.setObjectName("subtaskEdit")
+        self.setMaximumHeight(28)
+        self.editingFinished.connect(on_text_changed)
         if done:
-            f = self.font()
-            f.setStrikeOut(True)
-            self.setFont(f)
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self.on_toggle:
-            self.on_toggle()
-        super().mousePressEvent(event)
+            self.setProperty("done", "true")
 
 
 def open_task_detail(board: BoardService, task_id: str, on_close_callback, parent=None) -> bool:
@@ -127,7 +124,7 @@ class TaskDetailDialog(QDialog):
         self.on_close_callback = on_close_callback or (lambda: None)
         self._create_mode = task_id is None and column_key is not None
         self._current_col = column_key if self._create_mode else (board.get_task_column(task_id) or "in_progress")
-        self._initial_text = (initial_text or "")[:50]
+        self._initial_text = (initial_text or "")[:100]
 
         self.setWindowTitle("Nueva tarea" if self._create_mode else "Tarea")
         self.setModal(True)
@@ -214,7 +211,7 @@ class TaskDetailDialog(QDialog):
             self.state_combo.currentIndexChanged.connect(self._on_state_changed)
         left_layout.addLayout(header_row)
 
-        # 2. Actividad (máx 50 caracteres)
+        # 2. Actividad (máx 100 caracteres; en widgets se muestra truncado a 50)
         activity_label = QLabel("Actividad")
         activity_label.setObjectName("sectionLabel")
         left_layout.addWidget(activity_label)
@@ -222,9 +219,9 @@ class TaskDetailDialog(QDialog):
         self.text_edit = QLineEdit()
         self.text_edit.setObjectName("taskQuickEditText")
         name = task.get("name", "")
-        self.text_edit.setText(name[:50] if len(name) > 50 else name)
-        self.text_edit.setMaxLength(50)
-        self.text_edit.setPlaceholderText("Nombre de la actividad (máx. 50 caracteres)")
+        self.text_edit.setText(name[:100] if len(name) > 100 else name)
+        self.text_edit.setMaxLength(100)
+        self.text_edit.setPlaceholderText("Nombre de la actividad (máx. 100 caracteres)")
         self.text_edit.installEventFilter(self)
         left_layout.addWidget(self.text_edit)
 
@@ -236,18 +233,30 @@ class TaskDetailDialog(QDialog):
                 task.get("id", ""), transitions, self._current_col
             )
             col_label = _COL_LABEL_ES.get(self._current_col, col_key_to_display(self._current_col))
+
+            # Inicio en progreso: editable si la tarea tiene started_at
+            started_row = QHBoxLayout()
+            started_label = QLabel("Inicio en progreso:")
+            started_label.setObjectName("taskQuickEditInfo")
+            started_row.addWidget(started_label, 0)
+            self.started_at_edit = QLineEdit()
+            self.started_at_edit.setObjectName("taskQuickEditText")
+            self.started_at_edit.setPlaceholderText("dd/mm/aaaa hh:mm")
+            self.started_at_edit.setMaxLength(18)
+            self.started_at_edit.setText(iso_to_dd_mm_yyyy_hh_mm(started_at) if started_at else "")
+            self.started_at_edit.installEventFilter(self)
+            started_row.addWidget(self.started_at_edit, 1)
+            left_layout.addLayout(started_row)
+
+            # Info de tiempos (activo/detenido o duración en estado)
             if active_secs > 0 or detenido_secs > 0:
                 time_text = (
-                    f"Inicio en {col_label}: {format_date_display(started_at)}\n"
                     f"Tiempo activo: {format_seconds_duration(active_secs)}  ·  "
                     f"Tiempo detenido: {format_seconds_duration(detenido_secs)}"
                 )
             else:
                 entered_at = task.get("entered_at") or started_at
-                time_text = (
-                    f"Inicio en {col_label}: {format_date_display(started_at)}\n"
-                    f"En estado actual: {format_duration_in_activity(entered_at)}"
-                )
+                time_text = f"En estado actual: {format_duration_in_activity(entered_at)}"
             time_info = QLabel(time_text)
             time_info.setObjectName("taskTimeInfo")
             time_info.setWordWrap(True)
@@ -266,6 +275,12 @@ class TaskDetailDialog(QDialog):
         self.ticket_edit.installEventFilter(self)
         ticket_row.addWidget(self.ticket_edit, 1)
         left_layout.addLayout(ticket_row)
+
+        # Prioridad
+        self.priority_check = QCheckBox("Prioridad")
+        self.priority_check.setChecked(bool(task.get("prioridad", False)))
+        self.priority_check.installEventFilter(self)
+        left_layout.addWidget(self.priority_check)
 
         # Tribu y Squad (combo desde maestro)
         tribe_row = QHBoxLayout()
@@ -297,6 +312,16 @@ class TaskDetailDialog(QDialog):
         chan_row.addWidget(self.reporting_channel_combo, 1)
         left_layout.addLayout(chan_row)
 
+        # Categoría (combo desde maestro)
+        cat_row = QHBoxLayout()
+        cat_label = QLabel("Categoría:")
+        cat_label.setObjectName("taskQuickEditInfo")
+        cat_row.addWidget(cat_label, 0)
+        self.categoria_combo = self._make_master_combo("categoria", task.get("categoria", ""))
+        self.categoria_combo.installEventFilter(self)
+        cat_row.addWidget(self.categoria_combo, 1)
+        left_layout.addLayout(cat_row)
+
         # Fecha de compromiso
         due_row = QHBoxLayout()
         due_label = QLabel("Fecha de compromiso:")
@@ -304,8 +329,9 @@ class TaskDetailDialog(QDialog):
         due_row.addWidget(due_label, 0)
         self.due_date_edit = QLineEdit()
         self.due_date_edit.setObjectName("taskQuickEditText")
-        self.due_date_edit.setText(task.get("due_date", ""))
-        self.due_date_edit.setPlaceholderText("YYYY-MM-DD (opcional)")
+        due_raw = task.get("due_date", "")
+        self.due_date_edit.setText(iso_to_dd_mm_yyyy(due_raw) if due_raw else due_raw)
+        self.due_date_edit.setPlaceholderText("dd/mm/aaaa (opcional)")
         self.due_date_edit.setMaxLength(16)
         self.due_date_edit.installEventFilter(self)
         due_row.addWidget(self.due_date_edit, 1)
@@ -394,6 +420,7 @@ class TaskDetailDialog(QDialog):
             item = self._subtasks_layout.takeAt(0)
             if w := item.widget():
                 w.deleteLater()
+        self._subtask_edits = []
         for i, st in enumerate(self._subtasks):
             row = QHBoxLayout()
             row.setSpacing(6)
@@ -407,13 +434,21 @@ class TaskDetailDialog(QDialog):
                         self._persist_subtasks()
                 return toggle
 
+            def make_text_update(idx):
+                def update():
+                    if 0 <= idx < len(self._subtask_edits) and idx < len(self._subtasks):
+                        new_text = self._subtask_edits[idx].text().strip()
+                        self._subtasks[idx]["text"] = new_text
+                        self._persist_subtasks()
+                return update
+
             check_btn = _SubtaskCheckButton(st["done"], make_toggle(i))
             row.addWidget(check_btn, 0)
 
-            lbl = _SubtaskLabel(st["text"], st["done"], make_toggle(i))
-            lbl.setObjectName("subtaskLabel")
-            lbl.setProperty("done", "true" if st["done"] else "false")
-            row.addWidget(lbl, 1)
+            edit = _SubtaskEdit(st.get("text", ""), st["done"], make_text_update(i))
+            edit.setProperty("done", "true" if st["done"] else "false")
+            self._subtask_edits.append(edit)
+            row.addWidget(edit, 1)
 
             del_btn = QPushButton("Eliminar")
             del_btn.setObjectName("compactDangerBtn")
@@ -464,14 +499,20 @@ class TaskDetailDialog(QDialog):
                 if obj is self._subtask_input:
                     self._on_add_subtask()
                     return True
-                if obj in (
+                save_objs = [
                     self.text_edit,
                     self.ticket_edit,
                     self.due_date_edit,
                     self.tribe_combo,
                     self.requester_combo,
                     self.reporting_channel_combo,
-                ):
+                    self.categoria_combo,
+                ]
+                if hasattr(self, "priority_check") and self.priority_check:
+                    save_objs.append(self.priority_check)
+                if hasattr(self, "started_at_edit") and self.started_at_edit:
+                    save_objs.append(self.started_at_edit)
+                if obj in save_objs:
                     self._on_save()
                     return True
                 if self.state_combo and (obj is self.state_combo or obj is self.state_combo.view()):
@@ -487,7 +528,8 @@ class TaskDetailDialog(QDialog):
         tribe = (self.tribe_combo.currentText() or "").strip()
         requester = (self.requester_combo.currentText() or "").strip()
         reporting_channel = (self.reporting_channel_combo.currentText() or "").strip()
-        due_date = self.due_date_edit.text().strip()
+        due_date_raw = self.due_date_edit.text().strip()
+        due_date = (parse_date_to_iso(due_date_raw) or due_date_raw) if due_date_raw else ""
 
         if self._create_mode:
             task = self.board.create_task_in(text, self._current_col)
@@ -500,9 +542,11 @@ class TaskDetailDialog(QDialog):
                 return
             self.task_id = task["id"]
             self.board.update_task_ticket(self.task_id, ticket)
+            self.board.update_task_prioridad(self.task_id, self.priority_check.isChecked())
             self.board.update_task_tribe_and_squad(self.task_id, tribe)
             self.board.update_task_solicitante(self.task_id, requester)
             self.board.update_task_reporting_channel(self.task_id, reporting_channel)
+            self.board.update_task_categoria(self.task_id, self.categoria_combo.currentText().strip())
             self.board.update_task_due_date(self.task_id, due_date)
             if self._subtasks:
                 self.board.update_task_subtasks(self.task_id, self._subtasks)
@@ -511,12 +555,30 @@ class TaskDetailDialog(QDialog):
         else:
             ok_name = self.board.update_task_name(self.task_id, text)
             ok_ticket = self.board.update_task_ticket(self.task_id, ticket)
+            ok_priority = self.board.update_task_prioridad(self.task_id, self.priority_check.isChecked())
             ok_tribe = self.board.update_task_tribe_and_squad(self.task_id, tribe)
             ok_req = self.board.update_task_solicitante(self.task_id, requester)
             ok_chan = self.board.update_task_reporting_channel(self.task_id, reporting_channel)
+            ok_cat = self.board.update_task_categoria(self.task_id, self.categoria_combo.currentText().strip())
             ok_due = self.board.update_task_due_date(self.task_id, due_date)
             ok_sub = self.board.update_task_subtasks(self.task_id, self._subtasks)
-            if ok_name or ok_ticket or ok_tribe or ok_req or ok_chan or ok_due or ok_sub:
+
+            # Inicio en progreso (dd/mm/aaaa)
+            ok_started = False
+            if hasattr(self, "started_at_edit"):
+                started_raw = self.started_at_edit.text().strip()
+                if started_raw:
+                    started_iso = parse_date_to_iso(started_raw)
+                    if started_iso:
+                        ok_started = self.board.update_task_started_at(self.task_id, started_iso)
+                    else:
+                        QMessageBox.warning(self, "Fecha inválida", "Formato: dd/mm/aaaa hh:mm (ej: 16/03/2025 14:30)")
+                        return
+                else:
+                    # Vacío: podría borrar, pero started_at suele ser obligatorio una vez en progreso
+                    pass
+
+            if ok_name or ok_ticket or ok_priority or ok_tribe or ok_req or ok_chan or ok_cat or ok_due or ok_sub or ok_started:
                 self._show_saved_effect()
 
     def _show_saved_effect(self):
@@ -561,27 +623,41 @@ class TaskDetailDialog(QDialog):
         tribe = (self.tribe_combo.currentText() or "").strip()
         requester = (self.requester_combo.currentText() or "").strip()
         reporting_channel = (self.reporting_channel_combo.currentText() or "").strip()
-        due_date = self.due_date_edit.text().strip()
+        categoria = (self.categoria_combo.currentText() or "").strip()
+        due_date_raw = self.due_date_edit.text().strip()
+        due_date = (parse_date_to_iso(due_date_raw) or due_date_raw) if due_date_raw else ""
         if target == self._current_col:
             if self.board.get_task(self.task_id):
                 self.board.update_task_name(self.task_id, text or "Nueva tarea")
                 self.board.update_task_ticket(self.task_id, ticket)
+                self.board.update_task_prioridad(self.task_id, self.priority_check.isChecked())
                 self.board.update_task_tribe_and_squad(self.task_id, tribe)
-                self.board.update_task_requester(self.task_id, requester)
+                self.board.update_task_solicitante(self.task_id, requester)
                 self.board.update_task_reporting_channel(self.task_id, reporting_channel)
+                self.board.update_task_categoria(self.task_id, categoria)
                 self.board.update_task_due_date(self.task_id, due_date)
                 self.board.update_task_subtasks(self.task_id, self._subtasks)
+                if hasattr(self, "started_at_edit"):
+                    started_raw = self.started_at_edit.text().strip()
+                    if started_raw and (iso_val := parse_date_to_iso(started_raw)):
+                        self.board.update_task_started_at(self.task_id, iso_val)
             self.on_close_callback()
             self.accept()
             return
         if self.board.get_task(self.task_id):
             self.board.update_task_name(self.task_id, text or "Nueva tarea")
             self.board.update_task_ticket(self.task_id, ticket)
+            self.board.update_task_prioridad(self.task_id, self.priority_check.isChecked())
             self.board.update_task_tribe_and_squad(self.task_id, tribe)
-            self.board.update_task_requester(self.task_id, requester)
+            self.board.update_task_solicitante(self.task_id, requester)
             self.board.update_task_reporting_channel(self.task_id, reporting_channel)
+            self.board.update_task_categoria(self.task_id, categoria)
             self.board.update_task_due_date(self.task_id, due_date)
             self.board.update_task_subtasks(self.task_id, self._subtasks)
+            if hasattr(self, "started_at_edit"):
+                started_raw = self.started_at_edit.text().strip()
+                if started_raw and (iso_val := parse_date_to_iso(started_raw)):
+                    self.board.update_task_started_at(self.task_id, iso_val)
         if self.board.move_task(self.task_id, target):
             self.on_close_callback()
             self.accept()

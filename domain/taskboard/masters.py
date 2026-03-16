@@ -17,6 +17,8 @@ TRIBU_SQUAD_OPTIONS: list[dict[str, str]] = [
 
 SOLICITANTE_OPTIONS: list[dict[str, str]] = []
 
+CATEGORIA_OPTIONS: list[dict[str, str]] = []
+
 KANBAN_COLUMNS: list[dict[str, Any]] = [
     {"key": "backlog", "label": "Backlog", "order": 1, "wip_limit": 3},
     {"key": "todo", "label": "To Do", "order": 2, "wip_limit": 3},

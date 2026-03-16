@@ -5,6 +5,7 @@ Versionado de schema para ZODB.
   - schema_version 3: tribe_and_squad, requester, reporting_channel
   - schema_version 4: container deepflow, maestros, columns dict, Task campos
   - schema_version 5: maestros persistentes (tribu_squad, solicitante, canal_reporte)
+  - schema_version 6: maestro categoria
 """
 
 import logging
@@ -13,14 +14,21 @@ from typing import Any
 LOG = logging.getLogger(__name__)
 
 from domain.taskboard.constants import COLUMNS
-from domain.taskboard.masters import KANBAN_COLUMNS, ORIGEN_OPTIONS, SOLICITANTE_OPTIONS, TRIBU_SQUAD_OPTIONS
+from domain.taskboard.masters import (
+    CATEGORIA_OPTIONS,
+    KANBAN_COLUMNS,
+    ORIGEN_OPTIONS,
+    SOLICITANTE_OPTIONS,
+    TRIBU_SQUAD_OPTIONS,
+)
 
 
 def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]:
-    """Migra datos desde from_version a la última versión."""
+    """Migra datos desde from_version a la última versión (en secuencia v2, v3, ...)."""
     if from_version >= CURRENT_SCHEMA_VERSION:
         return data
-    LOG.info("Migrando schema de v%d a v%d", from_version, CURRENT_SCHEMA_VERSION)
+    steps = [s for s in range(from_version + 1, CURRENT_SCHEMA_VERSION + 1) if s >= 2]
+    LOG.info("Migrando schema de v%d a v%d (pasos: %s)", from_version, CURRENT_SCHEMA_VERSION, steps)
     result = data
     if from_version < 2:
         result = _migrate_v1_to_v2(result)
@@ -30,6 +38,8 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
         result = _migrate_v3_to_v4(result)
     if from_version < 5:
         result = _migrate_v4_to_v5(result)
+    if from_version < 6:
+        result = _migrate_v5_to_v6(result)
     LOG.debug("Migración de schema completada")
     return result
 
@@ -128,4 +138,16 @@ def _migrate_v4_to_v5(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-CURRENT_SCHEMA_VERSION = 5
+def _migrate_v5_to_v6(data: dict[str, Any]) -> dict[str, Any]:
+    """Migra a v6. Añade maestro categoria y campo en tareas."""
+    if "categoria" not in data or not isinstance(data.get("categoria"), list):
+        data["categoria"] = [dict(o) for o in CATEGORIA_OPTIONS]
+    cols = data.get("columns") or {}
+    for col, tasks in cols.items():
+        for task in tasks:
+            if isinstance(task, dict) and "categoria" not in task:
+                task["categoria"] = ""
+    return data
+
+
+CURRENT_SCHEMA_VERSION = 6

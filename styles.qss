@@ -130,6 +130,10 @@ QFrame#taskCard[column="done"] {
     opacity: 0.9;
 }
 
+QFrame#taskCard[prioridad="true"] {
+    border-left: 4px solid #eab308;
+}
+
 QFrame#taskCard[column="detenido"] {
     border-left: 4px solid #f59e0b;
     background-color: #fffbeb;
@@ -810,6 +814,24 @@ QLineEdit#subtaskInput:focus {
 
 QLineEdit#subtaskInput::placeholder {
     color: #8a8d92;
+}
+
+/* Input para editar nombre de subtarea */
+QLineEdit#subtaskEdit {
+    background-color: #ffffff;
+    color: #1a1b1c;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+
+QLineEdit#subtaskEdit:focus {
+    border-color: #2563eb;
+}
+
+QLineEdit#subtaskEdit[done="true"] {
+    color: #94a3b8;
 }
 
 /* Filas de subtarea */

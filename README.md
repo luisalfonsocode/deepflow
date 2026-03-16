@@ -18,6 +18,7 @@ Widget de escritorio para captura sin fricción y gestión de límites WIP (Work
 - [Tema visual](#tema-visual)
 - [Principios del proyecto](#principios-del-proyecto)
 - [Documentación](#documentacion)
+- [Despliegue y actualizaciones](docs/despliegue-updates.md)
 - [Compatibilidad](#compatibilidad)
 
 ---
@@ -250,6 +251,7 @@ Organizada por módulos. Ver **[docs/README.md](docs/README.md)** para el índic
 | **Módulos** | [Widget](docs/codigo/modulos/widget/README.md) · [TaskBoard](docs/codigo/modulos/taskboard/README.md) · [Reports](docs/codigo/modulos/reports/README.md) · [Alerts](docs/codigo/modulos/alerts/README.md) |
 | **API** | [TaskBoard API](docs/codigo/modulos/taskboard/API.md) |
 | **Arquitectura** | [Clean Architecture](docs/codigo/arquitectura-clean.md) · [Arquitectura técnica](docs/codigo/arquitectura-tecnica.md) · [Desarrollo](docs/codigo/desarrollo.md) · [Infraestructura](docs/codigo/infraestructura.md) · [Versionado BD](docs/codigo/versionado-base-datos.md) |
+| **Despliegue** | [Build y actualizaciones](docs/despliegue-updates.md) – Paquete de update sin tocar `data/` |
 
 <a id="compatibilidad"></a>
 ## Compatibilidad

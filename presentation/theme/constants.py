@@ -42,9 +42,9 @@ class Layout:
 
     # Task detail / dialogs
     TASK_DETAIL_MIN_WIDTH: Final[int] = 560
-    TASK_DETAIL_MIN_HEIGHT: Final[int] = 360
+    TASK_DETAIL_MIN_HEIGHT: Final[int] = 420
     TASK_DETAIL_DEFAULT_WIDTH: Final[int] = 640
-    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 420
+    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 520
 
     # Modal módulos (Reports con muchas columnas necesita más ancho)
     MODAL_MIN_WIDTH: Final[int] = 720
