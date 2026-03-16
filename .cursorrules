@@ -12,8 +12,8 @@
    - Una tarea = un nombre. Nada más.
 
 3. **Límite WIP Inviolable**
-   - Todas las columnas tienen un límite máximo de 3 tareas.
-   - Cualquier refactorización, feature o cambio debe respetar este límite.
+   - Backlog: sin límite (captura sin fricción).
+   - To Do, In Progress, Done: límite 3. Detenido: límite 5.
    - La validación del límite WIP es lógica crítica de negocio.
 
 ## Convenciones Técnicas
@@ -28,8 +28,8 @@
 
 | Columna      | Función                    | Especial               |
 |--------------|----------------------------|------------------------|
-| Backlog      | Entrada inicial (+ / Ctrl+V)| WIP Limit = 3         |
+| Backlog      | Entrada inicial (+ / Ctrl+V)| Sin límite             |
 | To Do        | Selección para sesión      | WIP Limit = 3          |
 | In Progress  | Trabajo activo             | WIP Limit = 3          |
 | Done         | Finalizadas                | WIP Limit = 3, opacidad|
-| Detenido     | Bloqueadas                 | WIP Limit = 3, ámbar   |
+| Detenido     | Bloqueadas                 | WIP Limit = 5, ámbar   |

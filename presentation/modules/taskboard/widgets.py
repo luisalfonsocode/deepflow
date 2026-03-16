@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from domain.taskboard import col_key_to_display, format_duration_in_activity
+from domain.taskboard import col_key_to_display, format_task_duration
 from presentation.shared.dnd import DeepFlowDropTargetMixin, make_task_mime_data
 from presentation.theme import ObjectNames
 
@@ -155,7 +155,8 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         column_key: str,
         on_move,
         on_click=None,
-        entered_at: str | None = None,
+        started_at: str | None = None,
+        finished_at: str | None = None,
         ticket: str = "",
         prioridad: bool = False,
         parent=None,
@@ -188,7 +189,7 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         self.name_label.setMaximumHeight(120)
         layout.addWidget(self.name_label, 1)
 
-        duration_str = format_duration_in_activity(entered_at)
+        duration_str = format_task_duration(started_at, finished_at, column_key)
         self.duration_label = QLabel(duration_str)
         self.duration_label.setObjectName("taskDuration")
         layout.addWidget(self.duration_label)

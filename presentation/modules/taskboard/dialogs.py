@@ -1,9 +1,9 @@
 """Diálogos del módulo TaskBoard. Modal unificado de detalle/edición de tarea."""
 
 from PyQt6.QtCore import QEvent, Qt, QTimer
+from presentation.widgets_common import ComboBoxNoWheelUnfocused
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -33,8 +33,8 @@ _COL_LABEL_ES = {
 from domain.taskboard.utils import (
     compute_time_in_columns,
     format_date_display,
-    format_duration_in_activity,
     format_seconds_duration,
+    format_task_duration,
     iso_to_dd_mm_yyyy,
     iso_to_dd_mm_yyyy_hh_mm,
     parse_date_to_iso,
@@ -151,7 +151,7 @@ class TaskDetailDialog(QDialog):
     def _make_master_combo(self, master_key: str, current_value: str):
         """Crea QComboBox poblado desde el maestro. Incluye opción vacía y valor actual si no está en la lista."""
         items = self.board.get_master_list(master_key)
-        combo = QComboBox()
+        combo = ComboBoxNoWheelUnfocused()
         combo.setObjectName("stateCombo")
         combo.addItem("", "")
         labels = set()
@@ -196,7 +196,7 @@ class TaskDetailDialog(QDialog):
             header_row.addWidget(state_static, 0)
             self.state_combo = None
         else:
-            self.state_combo = QComboBox()
+            self.state_combo = ComboBoxNoWheelUnfocused()
             self.state_combo.setObjectName("stateCombo")
             self.state_combo.installEventFilter(self)
             self.state_combo.view().installEventFilter(self)
@@ -258,8 +258,9 @@ class TaskDetailDialog(QDialog):
                     f"Tiempo detenido: {format_seconds_duration(detenido_secs)}"
                 )
             else:
-                entered_at = task.get("entered_at") or started_at
-                time_text = f"En estado actual: {format_duration_in_activity(entered_at)}"
+                time_text = (
+                    f"Duración: {format_task_duration(started_at, task.get('finished_at'), self._current_col)}"
+                )
             time_info = QLabel(time_text)
             time_info.setObjectName("taskTimeInfo")
             time_info.setWordWrap(True)

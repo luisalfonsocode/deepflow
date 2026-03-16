@@ -31,19 +31,54 @@ col_key_to_display = column_key_to_display
 
 def format_duration_in_activity(entered_at: str | None) -> str:
     """
-    Formato de duración en la actividad: '5d' si >= 1 día, '5h' si < 1 día.
-    entered_at: ISO 8601 string (GMT-5).
+    Formato de duración: '5d' si >= 1 día, '5h' si < 1 día.
+    entered_at → end_time = now. Legado; preferir format_task_duration.
     """
-    if not entered_at:
+    return _format_duration_between(entered_at, None)
+
+
+def format_task_duration(
+    started_at: str | None,
+    finished_at: str | None,
+    column_key: str,
+) -> str:
+    """
+    Duración de trabajo desde la primera vez en In Progress.
+    - in_progress (abierto): started_at → ahora
+    - done (cerrado): started_at → finished_at
+    - resto: "-"
+    started_at se establece solo la primera vez que llega a in_progress.
+    """
+    if not started_at:
+        return "-"
+    if column_key == "in_progress":
+        return _format_duration_between(started_at, None)  # end = now
+    if column_key == "done" and finished_at:
+        return _format_duration_between(started_at, finished_at)
+    return "-"
+
+
+def _format_duration_between(
+    start_iso: str | None,
+    end_iso: str | None,
+) -> str:
+    """Diferencia entre start y end (o now si end es None). Formato: '5d' o '5h'."""
+    if not start_iso:
         return "-"
     try:
-        then = datetime.fromisoformat(entered_at.replace("Z", "+00:00"))
-        now = datetime.now(TZ_APP)
-        if then.tzinfo is None:
-            then = then.replace(tzinfo=TZ_APP)
+        start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=TZ_APP)
         else:
-            then = then.astimezone(TZ_APP)
-        diff = (now - then).total_seconds()
+            start = start.astimezone(TZ_APP)
+        end = datetime.now(TZ_APP) if not end_iso else datetime.fromisoformat(
+            end_iso.replace("Z", "+00:00")
+        )
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=TZ_APP)
+        else:
+            end = end.astimezone(TZ_APP)
+        diff = (end - start).total_seconds()
         if diff < 0:
             return "-"
         if diff >= 86400:

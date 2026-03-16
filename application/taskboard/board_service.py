@@ -330,6 +330,8 @@ class BoardService:
 
     def can_add_to(self, column_key: str) -> bool:
         limit = get_wip_limit(KANBAN_COLUMNS, column_key)
+        if limit is None:
+            return True
         return len(self._cols().get(column_key, [])) < limit
 
     def count(self, column_key: str) -> int:
@@ -337,6 +339,8 @@ class BoardService:
 
     def is_overcapacity(self, column_key: str) -> bool:
         limit = get_wip_limit(KANBAN_COLUMNS, column_key)
+        if limit is None:
+            return False
         return len(self._cols().get(column_key, [])) > limit
 
     def _find_task(self, task_id: str) -> dict[str, Any] | None:

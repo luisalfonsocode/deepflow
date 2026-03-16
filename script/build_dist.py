@@ -53,10 +53,25 @@ def build_executable(debug: bool = False) -> str:
     if not config_src.exists():
         sys.exit(f"Error: no existe {config_src}")
 
+    # Icono: Windows usa .ico, macOS usa .icns
+    assets_dir = PROJECT_ROOT / "assets"
+    icon_file = None
+    if sys.platform == "win32":
+        icon_file = assets_dir / "icon.ico"
+    else:
+        icon_file = assets_dir / "icon.icns"
+    if not icon_file.exists():
+        icon_file = assets_dir / "icon.png"
+    if not icon_file.exists():
+        icon_file = None
+
     add_data = [
         f"--add-data={styles_src}{ADD_DATA_SEP}.",
         f"--add-data={config_src}{ADD_DATA_SEP}config",
     ]
+    # Incluir icono para setWindowIcon en runtime (ventana + barra de tareas)
+    if icon_file and icon_file.exists():
+        add_data.append(f"--add-data={icon_file}{ADD_DATA_SEP}assets")
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -75,6 +90,9 @@ def build_executable(debug: bool = False) -> str:
         *add_data,
         str(PROJECT_ROOT / "main.py"),
     ]
+    if icon_file and icon_file.exists():
+        cmd.extend(["--icon", str(icon_file)])
+        print(f"Icono: {icon_file.name}")
 
     mode = "debug (con consola)" if debug else "producción"
     print(f"Ejecutando PyInstaller... [{mode}]")

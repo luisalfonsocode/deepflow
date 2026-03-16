@@ -69,10 +69,19 @@ def main() -> None:
 
     out_zip = DIST_DIR / f"{APP_NAME}-update.zip"
     create_update_zip(app_folder, out_zip)
-    print("\nPara actualizar una instalación existente:")
+
+    # Comando para aplicar el update (imprimir siempre para no olvidar)
+    if sys.platform == "darwin":
+        ejemplo_destino = "/Applications"
+    else:
+        ejemplo_destino = "C:\\Apps"
+    unzip_cmd = f"unzip -o {out_zip} -d {ejemplo_destino}"
+
+    print("\n--- Aplicar update ---")
     print("  1. Cierra DeepFlow si está abierto")
-    print("  2. Descomprime el ZIP sobre la carpeta de instalación")
-    print("  3. data/ NO se toca; tus tareas se conservan")
+    print("  2. Ejecuta (ajusta la ruta destino si hace falta):")
+    print(f"     {unzip_cmd}")
+    print("  data/ NO se toca; tus tareas se conservan")
 
 
 if __name__ == "__main__":

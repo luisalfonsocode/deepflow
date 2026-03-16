@@ -149,7 +149,8 @@ class InProgressCompact(QWidget):
         for t in tasks_progress[:_MAX_TASKS_PER_SECTION]:
             row = CompactTaskRow(
                 t.get("name", ""),
-                entered_at=t.get("entered_at") or t.get("started_at"),
+                started_at=t.get("started_at"),
+                column_key="in_progress",
                 on_click=lambda tid=t["id"]: self._on_task_click(tid),
                 max_name_len=50,
                 ticket=t.get("ticket", ""),
@@ -169,7 +170,8 @@ class InProgressCompact(QWidget):
         for t in tasks_detenidas[:_MAX_TASKS_PER_SECTION]:
             row = CompactTaskRow(
                 t.get("name", ""),
-                entered_at=t.get("entered_at") or t.get("started_at"),
+                started_at=t.get("started_at"),
+                column_key="detenido",
                 on_click=lambda tid=t["id"]: self._on_task_click(tid),
                 max_name_len=50,
                 ticket=t.get("ticket", ""),

@@ -5,7 +5,7 @@ Ejecutar: pytest tests/test_board_service.py -v
 
 import pytest
 
-from domain.taskboard.constants import COLUMNS, WIP_LIMIT_PER_COLUMN
+from domain.taskboard.constants import COLUMNS
 from application.taskboard import BoardService
 
 from tests.conftest import InMemoryBoardRepository
@@ -35,13 +35,14 @@ def test_create_task_nombre_solo_espacios_usar_default(board_service):
     assert task["name"] == "Nueva tarea"
 
 
-def test_create_task_backlog_lleno_retorna_none(board_service):
-    """Si Backlog tiene 3 tareas, create_task retorna None."""
-    for _ in range(WIP_LIMIT_PER_COLUMN):
+def test_create_task_backlog_sin_limite(board_service):
+    """Backlog no tiene límite; se puede añadir más de 3 tareas."""
+    for _ in range(5):
         board_service.create_task("x")
+    assert len(board_service.data["backlog"]) == 5
     task = board_service.create_task("otra")
-    assert task is None
-    assert len(board_service.data["backlog"]) == 3
+    assert task is not None
+    assert len(board_service.data["backlog"]) == 6
 
 
 def test_create_task_no_registra_started_finished(board_service):
@@ -227,10 +228,10 @@ def test_can_add_to_true_cuando_hay_espacio(board_service):
 
 
 def test_can_add_to_false_cuando_lleno(board_service):
-    """can_add_to False cuando la columna tiene 3 tareas."""
+    """can_add_to False cuando la columna limitada (todo) tiene 3 tareas."""
     for _ in range(3):
-        board_service.create_task("x")
-    assert board_service.can_add_to("backlog") is False
+        board_service.create_task_in("x", "todo")
+    assert board_service.can_add_to("todo") is False
 
 
 # --- count ---
@@ -252,14 +253,28 @@ def test_is_overcapacity_false_cuando_ok(board_service):
 
 
 def test_is_overcapacity_true_cuando_excede(empty_repo):
-    """is_overcapacity True cuando count > 3 (datos legacy)."""
+    """is_overcapacity True cuando count > límite (ej. todo con 4, límite 3)."""
     data = {
-        "backlog": [{"id": f"x{i}", "name": f"X{i}"} for i in range(4)],
-        "todo": [], "in_progress": [], "done": [], "detenido": [],
+        "backlog": [],
+        "todo": [{"id": f"x{i}", "name": f"X{i}"} for i in range(4)],
+        "in_progress": [], "done": [], "detenido": [],
     }
     repo = InMemoryBoardRepository(data)
     svc = BoardService(repo)
-    assert svc.is_overcapacity("backlog") is True
+    assert svc.is_overcapacity("todo") is True
+
+
+def test_detenido_limite_5(empty_repo):
+    """Detenido tiene límite 5; 6 tareas = overcapacity."""
+    data = {
+        "backlog": [],
+        "todo": [], "in_progress": [], "done": [],
+        "detenido": [{"id": f"x{i}", "name": f"X{i}"} for i in range(6)],
+    }
+    repo = InMemoryBoardRepository(data)
+    svc = BoardService(repo)
+    assert svc.is_overcapacity("detenido") is True
+    assert svc.can_add_to("detenido") is False
 
 
 # --- load / persist ---

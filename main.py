@@ -13,18 +13,34 @@ from config.logging_config import setup_logging
 
 setup_logging()
 
+from pathlib import Path
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtGui import QIcon, QPalette, QColor
 from PyQt6.QtWidgets import QApplication
 
+from config.base import RESOURCE_ROOT, PROJECT_ROOT
 from presentation.composition import create_board_service, create_clipboard_provider
 from presentation.modules.widget import MainShell
 from presentation.style_loader import load_styles
 
 
+def _find_icon_path() -> Path | None:
+    """Busca icono para la ventana (exe, barra de tareas)."""
+    for base in (RESOURCE_ROOT, PROJECT_ROOT):
+        for name in ("icon.ico", "icon.icns", "icon.png"):
+            p = base / "assets" / name
+            if p.exists():
+                return p
+    return None
+
+
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("DeepFlow")
+    icon_path = _find_icon_path()
+    if icon_path:
+        app.setWindowIcon(QIcon(str(icon_path)))
     # Fusion respeta mejor la paleta y QSS en tema oscuro que el estilo nativo de macOS
     app.setStyle("Fusion")
     load_styles(app)

@@ -11,9 +11,9 @@ LOG = logging.getLogger(__name__)
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
+from presentation.widgets_common import ComboBoxNoWheelUnfocused
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -181,7 +181,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
     """Delegate para editar columna Estado. Solo permite columnas con espacio (WIP)."""
 
     def createEditor(self, parent, option, index):
-        cb = QComboBox(parent)
+        cb = ComboBoxNoWheelUnfocused(parent)
         reports_view = self.parent()
         current_col = ""
         if hasattr(reports_view, "table_tareas") and hasattr(reports_view, "_presenter"):
