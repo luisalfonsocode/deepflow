@@ -70,6 +70,7 @@ def build_executable(debug: bool = False) -> str:
         "--hidden-import", "yaml",
         "--hidden-import", "cffi",
         "--hidden-import", "_cffi_backend",
+        "--collect-all", "PyQt6",
         *add_data,
         str(PROJECT_ROOT / "main.py"),
     ]
