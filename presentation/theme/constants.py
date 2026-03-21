@@ -47,10 +47,10 @@ class Layout:
     TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 620
 
     # Modal módulos (Reports con timeline y gráficos necesita más espacio)
-    MODAL_MIN_WIDTH: Final[int] = 800
-    MODAL_MIN_HEIGHT: Final[int] = 440
-    MODAL_DEFAULT_WIDTH: Final[int] = 1000
-    MODAL_DEFAULT_HEIGHT: Final[int] = 560
+    MODAL_MIN_WIDTH: Final[int] = 900
+    MODAL_MIN_HEIGHT: Final[int] = 520
+    MODAL_DEFAULT_WIDTH: Final[int] = 1080
+    MODAL_DEFAULT_HEIGHT: Final[int] = 640
 
     # Task input
     TASK_INPUT_MIN_WIDTH: Final[int] = 420
@@ -61,10 +61,10 @@ class Layout:
     MAX_TASKS_VISIBLE: Final[int] = 3
     MAX_NAME_LEN: Final[int] = 50
 
-    # Main shell / dashboard (taskboard)
-    SHELL_MIN_WIDTH: Final[int] = 400
-    SHELL_MIN_HEIGHT: Final[int] = 360
-    SHELL_DEFAULT_WIDTH: Final[int] = 440
-    SHELL_DEFAULT_HEIGHT: Final[int] = 420
+    # Main shell / dashboard (ajustado al card: 512px ancho, ~190px alto contenido)
+    SHELL_MIN_WIDTH: Final[int] = 480
+    SHELL_MIN_HEIGHT: Final[int] = 260
+    SHELL_DEFAULT_WIDTH: Final[int] = 560
+    SHELL_DEFAULT_HEIGHT: Final[int] = 270
 
 

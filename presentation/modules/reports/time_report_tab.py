@@ -141,7 +141,7 @@ class TimelineWidget(QWidget):
 
 
 class PieChartWidget(QWidget):
-    """Gráfico circular con % de tiempo por categoría. Tabla de tareas abajo."""
+    """Gráfico circular con % de tiempo por categoría. Tabla de leyenda abajo."""
 
     LEGEND_ROW_HEIGHT = 24
     PIE_SIDE = 140
@@ -149,10 +149,18 @@ class PieChartWidget(QWidget):
     PIE_LEGEND_GAP = 24
     MIN_SLICE_DEG = 8
 
+    # Columnas de la tabla (anchos fijos, de izquierda a derecha)
+    COL_CAT_WIDTH = 200
+    COL_TAREAS_WIDTH = 42
+    COL_TIEMPO_WIDTH = 72  # Mismo ancho para Tiempo % y Tiempo (d)
+    CAT_MAX_CHARS = 28
+    HEADER_HEIGHT = 24
+    LINE_AFTER_HEADER = 4
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._items: list[dict] = []
-        self.setMinimumSize(380, 260)
+        self.setMinimumSize(480, 280)
 
     def _color_for_index(self, i: int, n: int) -> QColor:
         hue = (i / max(1, n)) % 1.0
@@ -163,7 +171,8 @@ class PieChartWidget(QWidget):
         """summary_by_categoria: [{categoria, pct_total, task_count, tiempo_dias}, ...]"""
         self._items = [s for s in (summary or []) if isinstance(s, dict)]
         if self._items:
-            legend_h = 32 + len(self._items) * self.LEGEND_ROW_HEIGHT
+            header_h = self.HEADER_HEIGHT + self.LINE_AFTER_HEADER + 8
+            legend_h = header_h + len(self._items) * self.LEGEND_ROW_HEIGHT
             min_h = self.MARGIN_TOP + self.PIE_SIDE + self.PIE_LEGEND_GAP + legend_h
             self.setMinimumHeight(int(min_h))
         self.updateGeometry()
@@ -183,9 +192,10 @@ class PieChartWidget(QWidget):
         if not self._items:
             return super().sizeHint()
         n = len(self._items)
-        legend_h = 32 + n * self.LEGEND_ROW_HEIGHT
+        header_h = self.HEADER_HEIGHT + self.LINE_AFTER_HEADER + 8
+        legend_h = header_h + n * self.LEGEND_ROW_HEIGHT
         h = self.MARGIN_TOP + self.PIE_SIDE + self.PIE_LEGEND_GAP + legend_h
-        return QSize(360, max(320, h))
+        return QSize(480, max(360, h))
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -241,30 +251,50 @@ class PieChartWidget(QWidget):
 
         y0 = self.MARGIN_TOP + self.PIE_SIDE + self.PIE_LEGEND_GAP
         painter.setFont(self.font())
-        col_cat = 8
-        # Más espacio para categoría; % y Tiempo (d) juntos a la derecha
-        col_tareas = r.width() - 165
-        col_pct = r.width() - 115
-        col_dias = r.width() - 55
+
+        # Posiciones de columnas (anchuras fijas)
+        margin = 8
+        col_x = margin
+        x_cat = col_x
+        col_x += self.COL_CAT_WIDTH + 4
+        x_tareas = col_x
+        col_x += self.COL_TAREAS_WIDTH + 4
+        x_pct = col_x
+        col_x += self.COL_TIEMPO_WIDTH + 4
+        x_dias = col_x
+
+        # Cabecera
         painter.setPen(QColor("#475569"))
-        painter.drawText(col_cat, y0 - 4, "Categoría")
-        painter.drawText(col_tareas - 40, y0 - 4, "Tareas")
-        painter.drawText(col_pct, y0 - 4, "%")
-        painter.drawText(col_dias - 50, y0 - 4, "Tiempo (d)")
-        painter.drawLine(8, y0 + 4, r.width() - 8, y0 + 4)
+        hdr_y = y0
+        hdr_rect_cat = QRectF(x_cat, hdr_y, self.COL_CAT_WIDTH, self.HEADER_HEIGHT)
+        hdr_rect_tareas = QRectF(x_tareas, hdr_y, self.COL_TAREAS_WIDTH, self.HEADER_HEIGHT)
+        hdr_rect_pct = QRectF(x_pct, hdr_y, self.COL_TIEMPO_WIDTH, self.HEADER_HEIGHT)
+        hdr_rect_dias = QRectF(x_dias, hdr_y, self.COL_TIEMPO_WIDTH, self.HEADER_HEIGHT)
+        painter.drawText(hdr_rect_cat, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "Categoría")
+        painter.drawText(hdr_rect_tareas, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "Tareas")
+        painter.drawText(hdr_rect_pct, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "Tiempo %")
+        painter.drawText(hdr_rect_dias, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "Tiempo (d)")
+
+        # Línea separadora debajo de los títulos
+        line_y = y0 + self.HEADER_HEIGHT + self.LINE_AFTER_HEADER
+        painter.drawLine(margin, int(line_y), r.width() - margin, int(line_y))
 
         for i, (label, pct, task_count, tiempo_dias) in enumerate(items_pct):
-            y = y0 + 16 + (i + 1) * self.LEGEND_ROW_HEIGHT
+            y = line_y + 8 + (i + 1) * self.LEGEND_ROW_HEIGHT
             color = self._color_for_index(i, n)
             painter.setBrush(color)
-            painter.drawRect(col_cat, y - 10, 10, 10)
+            painter.drawRect(x_cat, y - 10, 10, 10)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QColor("#334155"))
-            lbl = (label[:38] + "…") if len(label) > 38 else label
-            painter.drawText(col_cat + 18, y + 2, lbl)
-            painter.drawText(col_tareas - 36, y + 2, str(task_count))
-            painter.drawText(col_pct, y + 2, f"{pct:.1f}%")
-            painter.drawText(col_dias - 45, y + 2, f"{tiempo_dias:.1f}")
+            lbl = (label[: self.CAT_MAX_CHARS] + "…") if len(label) > self.CAT_MAX_CHARS else label
+            cat_rect = QRectF(x_cat + 18, y - 2, self.COL_CAT_WIDTH - 20, 20)
+            painter.drawText(cat_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, lbl)
+            tareas_rect = QRectF(x_tareas, y - 2, self.COL_TAREAS_WIDTH, 20)
+            pct_rect = QRectF(x_pct, y - 2, self.COL_TIEMPO_WIDTH, 20)
+            dias_rect = QRectF(x_dias, y - 2, self.COL_TIEMPO_WIDTH, 20)
+            painter.drawText(tareas_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, str(task_count))
+            painter.drawText(pct_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, f"{pct:.1f}%")
+            painter.drawText(dias_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, f"{tiempo_dias:.1f}")
 
         painter.end()
 
@@ -280,6 +310,7 @@ class TimeReportTab(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setMinimumWidth(920)
         self._build_ui()
         self._connect_signals()
         self._apply_period_dates()
@@ -288,6 +319,7 @@ class TimeReportTab(QWidget):
         layout = QVBoxLayout(self)
 
         filter_row = QHBoxLayout()
+        filter_row.setSpacing(10)
         filter_row.addWidget(QLabel("Periodo:"))
         self.period_combo = QComboBox()
         self.period_combo.addItem("Esta semana", "week")
@@ -327,8 +359,8 @@ class TimeReportTab(QWidget):
         layout.addLayout(filter_row)
 
         content_row = QHBoxLayout()
-        content_row.setContentsMargins(0, 16, 0, 0)
-        content_row.setSpacing(16)
+        content_row.setContentsMargins(0, 20, 0, 0)
+        content_row.setSpacing(24)
 
         timeline_layout = QVBoxLayout()
         timeline_layout.addWidget(
@@ -357,8 +389,8 @@ class TimeReportTab(QWidget):
         pie_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         pie_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         pie_scroll.setWidget(self.pie)
-        pie_scroll.setMinimumWidth(360)
-        pie_scroll.setMinimumHeight(400)
+        pie_scroll.setMinimumWidth(500)
+        pie_scroll.setMinimumHeight(420)
         pie_layout.addWidget(pie_scroll)
         pie_layout.addStretch()
         content_row.addLayout(pie_layout, 0)

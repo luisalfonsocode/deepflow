@@ -67,7 +67,8 @@ class SubtasksModal(QDialog):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         lbl = QLabel(f"Tarea: {self._task_name[:80]}")
         lbl.setObjectName("sectionLabel")
         layout.addWidget(lbl)
@@ -219,22 +220,17 @@ class ReportsView(QWidget):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        title = QLabel("Reportes")
-        title.setObjectName(ObjectNames.REPORTS_TITLE)
-        header.addWidget(title)
-        header.addStretch()
-        self.export_excel_btn = QPushButton("Exportar a Excel")
-        self.export_excel_btn.setObjectName(ObjectNames.PRIMARY_BTN)
-        self.export_excel_btn.clicked.connect(self._on_export_excel)
-        header.addWidget(self.export_excel_btn)
-        layout.addLayout(header)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName("reportsTabs")
+
+        self.export_excel_btn = QPushButton("Exportar Excel")
+        self.export_excel_btn.setObjectName(ObjectNames.PRIMARY_BTN)
+        self.export_excel_btn.setToolTip("Exporta Tareas, Subtareas, Transiciones y Reporte de tiempo a Excel")
+        self.export_excel_btn.clicked.connect(self._on_export_excel)
+        self.tabs.setCornerWidget(self.export_excel_btn, Qt.Corner.TopRightCorner)
 
         # Tab Tareas: Actividad, Estado, fechas (abreviadas F.), Ticket, Subtareas
         self.table_tareas = self._create_table(
@@ -260,7 +256,9 @@ class ReportsView(QWidget):
         self.empty_tareas.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tab_tareas = QWidget()
         layout_tareas = QVBoxLayout(tab_tareas)
+        layout_tareas.setSpacing(10)
         btn_tareas = QHBoxLayout()
+        btn_tareas.setSpacing(8)
         btn_add_tarea = QPushButton("+ Añadir tarea")
         btn_add_tarea.setObjectName("reportsAddTarea")
         btn_add_tarea.clicked.connect(self._on_add_tarea)

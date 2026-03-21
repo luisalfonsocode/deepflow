@@ -39,12 +39,8 @@ class MastersView(QWidget):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-
-        title = QLabel("Maestros")
-        title.setObjectName(ObjectNames.REPORTS_TITLE)
-        layout.addWidget(title)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName("reportsTabs")
@@ -63,9 +59,10 @@ class MastersView(QWidget):
     def _create_master_tab(self, master_key: str) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 8, 0, 0)
+        layout.setContentsMargins(0, 12, 0, 0)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
         btn_add = QPushButton("+ Añadir")
         btn_add.setObjectName("reportsAddTarea")
         btn_add.clicked.connect(lambda: self._on_add(master_key))
@@ -105,7 +102,7 @@ class MastersView(QWidget):
         """Tab para editar kanban_columns: Label, Orden, Límite WIP."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 8, 0, 0)
+        layout.setContentsMargins(0, 12, 0, 0)
 
         hint = QLabel("Límite WIP: número máximo de tareas. Vacío = sin límite.")
         hint.setObjectName("sectionLabel")

@@ -36,8 +36,8 @@ class TaskBoardView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         columns_layout = QHBoxLayout()
-        columns_layout.setContentsMargins(6, 6, 6, 6)
-        columns_layout.setSpacing(4)
+        columns_layout.setContentsMargins(12, 12, 12, 12)
+        columns_layout.setSpacing(8)
 
         self.columns: dict[str, ColumnWidget] = {}
         for col in self.board.get_column_keys():
