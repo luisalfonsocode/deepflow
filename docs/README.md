@@ -30,6 +30,13 @@ Referencia técnica: estructura, arquitectura, guías de desarrollo y APIs de m�
 | [Maestros](codigo/modulos/masters/README.md) | Tribu, Solicitante, Canal, Categoría, Columnas Kanban |
 | [Alerts](codigo/modulos/alerts/README.md) | Alertas (en desarrollo) |
 
+### Análisis y funcionalidades
+
+| Documento | Descripción |
+|----------|-------------|
+| [ANÁLISIS REPORTE DE TIEMPO](ANALISIS_REPORTE_TIEMPO.md) | Viabilidad de reporte semanal/mensual de dónde va el tiempo |
+| [FUNCIONALIDADES_HABILITABLES](FUNCIONALIDADES_HABILITABLES.md) | Módulos deshabilitados, placeholders y funcionalidades ampliables |
+
 ---
 
 ## 2. Datos (fuera de docs/)

@@ -124,6 +124,8 @@ class TaskDetailDialog(QDialog):
         self.setMinimumSize(Layout.TASK_DETAIL_MIN_WIDTH, Layout.TASK_DETAIL_MIN_HEIGHT)
         self.resize(Layout.TASK_DETAIL_DEFAULT_WIDTH, Layout.TASK_DETAIL_DEFAULT_HEIGHT)
 
+        self._restore_timer = None
+        self._is_showing_saved = False
         if not self._create_mode:
             task = board.get_task(task_id)
             if not task:
@@ -137,6 +139,28 @@ class TaskDetailDialog(QDialog):
         self._combo_ready = True
 
         load_styles(self)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            if self._is_showing_saved:
+                event.accept()
+                return
+            event.accept()
+            self._cancel_restore_timer()
+            QTimer.singleShot(0, self.reject)
+            return
+        super().keyPressEvent(event)
+
+    def _cancel_restore_timer(self):
+        """Cancela el timer de _restore_save_btn para evitar segfault al cerrar con ESC."""
+        if getattr(self, "_restore_timer", None) is not None:
+            self._restore_timer.stop()
+            self._restore_timer = None
+        self._is_showing_saved = False
+
+    def reject(self):
+        self._cancel_restore_timer()
+        super().reject()
 
     def _make_master_combo(self, master_key: str, current_value: str):
         """Crea QComboBox poblado desde el maestro. Incluye opción vacía y valor actual si no está en la lista."""
@@ -175,7 +199,30 @@ class TaskDetailDialog(QDialog):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # 1. Estado (en creación: etiqueta fija; en edición: combo)
+        # --- 1. NOMBRE Y CATEGORÍA (siempre al inicio) ---
+        name_cat_label = QLabel("Actividad y categoría")
+        name_cat_label.setObjectName("sectionLabel")
+        left_layout.addWidget(name_cat_label)
+
+        self.text_edit = QLineEdit()
+        self.text_edit.setObjectName("taskQuickEditText")
+        name = task.get("name", "")
+        self.text_edit.setText(name[:100] if len(name) > 100 else name)
+        self.text_edit.setMaxLength(100)
+        self.text_edit.setPlaceholderText("Nombre de la actividad (máx. 100 caracteres)")
+        self.text_edit.installEventFilter(self)
+        left_layout.addWidget(self.text_edit)
+
+        cat_row = QHBoxLayout()
+        cat_label = QLabel("Categoría:")
+        cat_label.setObjectName("taskQuickEditInfo")
+        cat_row.addWidget(cat_label, 0)
+        self.categoria_combo = self._make_master_combo("categoria", task.get("categoria", ""))
+        self.categoria_combo.installEventFilter(self)
+        cat_row.addWidget(self.categoria_combo, 1)
+        left_layout.addLayout(cat_row)
+
+        # --- 2. Estado ---
         header_row = QHBoxLayout()
         state_label = QLabel("Estado:")
         state_label.setObjectName("taskQuickEditInfo")
@@ -205,30 +252,18 @@ class TaskDetailDialog(QDialog):
             self.state_combo.currentIndexChanged.connect(self._on_state_changed)
         left_layout.addLayout(header_row)
 
-        # 2. Actividad (máx 100 caracteres; en widgets se muestra truncado a 50)
-        activity_label = QLabel("Actividad")
-        activity_label.setObjectName("sectionLabel")
-        left_layout.addWidget(activity_label)
-
-        self.text_edit = QLineEdit()
-        self.text_edit.setObjectName("taskQuickEditText")
-        name = task.get("name", "")
-        self.text_edit.setText(name[:100] if len(name) > 100 else name)
-        self.text_edit.setMaxLength(100)
-        self.text_edit.setPlaceholderText("Nombre de la actividad (máx. 100 caracteres)")
-        self.text_edit.installEventFilter(self)
-        left_layout.addWidget(self.text_edit)
-
-        # 3. Fechas (solo en edición; en creación no hay aún)
+        # --- 3. FECHAS (agrupadas) ---
+        fechas_label = QLabel("Fechas")
+        fechas_label.setObjectName("sectionLabel")
+        left_layout.addWidget(fechas_label)
         if not self._create_mode:
             started_at = task.get("started_at")
             transitions = self.board.data.get("transitions", [])
             active_secs, detenido_secs = compute_time_in_columns(
                 task.get("id", ""), transitions, self._current_col
             )
-            col_label = self.board.col_key_to_display(self._current_col)
 
-            # Inicio en progreso: editable si la tarea tiene started_at
+            # Inicio en progreso
             started_row = QHBoxLayout()
             started_label = QLabel("Inicio en progreso:")
             started_label.setObjectName("taskQuickEditInfo")
@@ -241,6 +276,21 @@ class TaskDetailDialog(QDialog):
             self.started_at_edit.installEventFilter(self)
             started_row.addWidget(self.started_at_edit, 1)
             left_layout.addLayout(started_row)
+
+            # Fin (fecha de cierre): editable, existe en BD
+            finished_at = task.get("finished_at")
+            finished_row = QHBoxLayout()
+            finished_label = QLabel("Fin:")
+            finished_label.setObjectName("taskQuickEditInfo")
+            finished_row.addWidget(finished_label, 0)
+            self.finished_at_edit = QLineEdit()
+            self.finished_at_edit.setObjectName("taskQuickEditText")
+            self.finished_at_edit.setPlaceholderText("dd/mm/aaaa hh:mm (opcional)")
+            self.finished_at_edit.setMaxLength(18)
+            self.finished_at_edit.setText(iso_to_dd_mm_yyyy_hh_mm(finished_at) if finished_at else "")
+            self.finished_at_edit.installEventFilter(self)
+            finished_row.addWidget(self.finished_at_edit, 1)
+            left_layout.addLayout(finished_row)
 
             # Info de tiempos (activo/detenido o duración en estado)
             if active_secs > 0 or detenido_secs > 0:
@@ -257,7 +307,21 @@ class TaskDetailDialog(QDialog):
             time_info.setWordWrap(True)
             left_layout.addWidget(time_info)
 
-        # Ticket (código de solicitud externa)
+        due_row = QHBoxLayout()
+        due_label = QLabel("Fecha de compromiso:")
+        due_label.setObjectName("taskQuickEditInfo")
+        due_row.addWidget(due_label, 0)
+        self.due_date_edit = QLineEdit()
+        self.due_date_edit.setObjectName("taskQuickEditText")
+        due_raw = task.get("due_date", "")
+        self.due_date_edit.setText(iso_to_dd_mm_yyyy(due_raw) if due_raw else due_raw)
+        self.due_date_edit.setPlaceholderText("dd/mm/aaaa (opcional)")
+        self.due_date_edit.setMaxLength(16)
+        self.due_date_edit.installEventFilter(self)
+        due_row.addWidget(self.due_date_edit, 1)
+        left_layout.addLayout(due_row)
+
+        # --- 4. Ticket, Prioridad, Tribu, Solicitante, Canal ---
         ticket_row = QHBoxLayout()
         ticket_label = QLabel("Ticket:")
         ticket_label.setObjectName("taskQuickEditInfo")
@@ -306,31 +370,6 @@ class TaskDetailDialog(QDialog):
         self.reporting_channel_combo.installEventFilter(self)
         chan_row.addWidget(self.reporting_channel_combo, 1)
         left_layout.addLayout(chan_row)
-
-        # Categoría (combo desde maestro)
-        cat_row = QHBoxLayout()
-        cat_label = QLabel("Categoría:")
-        cat_label.setObjectName("taskQuickEditInfo")
-        cat_row.addWidget(cat_label, 0)
-        self.categoria_combo = self._make_master_combo("categoria", task.get("categoria", ""))
-        self.categoria_combo.installEventFilter(self)
-        cat_row.addWidget(self.categoria_combo, 1)
-        left_layout.addLayout(cat_row)
-
-        # Fecha de compromiso
-        due_row = QHBoxLayout()
-        due_label = QLabel("Fecha de compromiso:")
-        due_label.setObjectName("taskQuickEditInfo")
-        due_row.addWidget(due_label, 0)
-        self.due_date_edit = QLineEdit()
-        self.due_date_edit.setObjectName("taskQuickEditText")
-        due_raw = task.get("due_date", "")
-        self.due_date_edit.setText(iso_to_dd_mm_yyyy(due_raw) if due_raw else due_raw)
-        self.due_date_edit.setPlaceholderText("dd/mm/aaaa (opcional)")
-        self.due_date_edit.setMaxLength(16)
-        self.due_date_edit.installEventFilter(self)
-        due_row.addWidget(self.due_date_edit, 1)
-        left_layout.addLayout(due_row)
 
         left_layout.addStretch()
         panels.addWidget(left_panel, 1)
@@ -494,6 +533,14 @@ class TaskDetailDialog(QDialog):
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.KeyPress:
             key = event.key()
+            if key == Qt.Key.Key_Escape:
+                if self._is_showing_saved:
+                    event.accept()
+                    return True
+                event.accept()
+                self._cancel_restore_timer()
+                QTimer.singleShot(0, self.reject)
+                return True
             if key in (Qt.Key.Key_Up, Qt.Key.Key_Down):
                 if self.state_combo and (obj is self.state_combo or obj is self.state_combo.view()):
                     return False
@@ -514,6 +561,8 @@ class TaskDetailDialog(QDialog):
                     save_objs.append(self.priority_check)
                 if hasattr(self, "started_at_edit") and self.started_at_edit:
                     save_objs.append(self.started_at_edit)
+                if hasattr(self, "finished_at_edit") and self.finished_at_edit:
+                    save_objs.append(self.finished_at_edit)
                 if obj in save_objs:
                     self._on_save()
                     return True
@@ -554,6 +603,7 @@ class TaskDetailDialog(QDialog):
                 self._sync_subtasks_from_edits()
                 self.board.update_task_subtasks(self.task_id, self._subtasks)
             self.on_close_callback()
+            self._cancel_restore_timer()
             self.accept()
         else:
             ok_name = self.board.update_task_name(self.task_id, text)
@@ -567,7 +617,7 @@ class TaskDetailDialog(QDialog):
             self._sync_subtasks_from_edits()
             ok_sub = self.board.update_task_subtasks(self.task_id, self._subtasks)
 
-            # Inicio en progreso (dd/mm/aaaa)
+            # Inicio en progreso (dd/mm/aaaa hh:mm)
             ok_started = False
             if hasattr(self, "started_at_edit"):
                 started_raw = self.started_at_edit.text().strip()
@@ -582,24 +632,46 @@ class TaskDetailDialog(QDialog):
                     # Vacío: podría borrar, pero started_at suele ser obligatorio una vez en progreso
                     pass
 
-            if ok_name or ok_ticket or ok_priority or ok_tribe or ok_req or ok_chan or ok_cat or ok_due or ok_sub or ok_started:
+            # Fin (dd/mm/aaaa hh:mm, opcional)
+            ok_finished = False
+            if hasattr(self, "finished_at_edit"):
+                finished_raw = self.finished_at_edit.text().strip()
+                if finished_raw:
+                    finished_iso = parse_date_to_iso(finished_raw)
+                    if finished_iso:
+                        ok_finished = self.board.update_task_finished_at(self.task_id, finished_iso)
+                    else:
+                        QMessageBox.warning(self, "Fecha inválida", "Formato de fin: dd/mm/aaaa hh:mm (ej: 16/03/2025 14:30)")
+                        return
+                else:
+                    # Vacío: borrar finished_at
+                    ok_finished = self.board.update_task_finished_at(self.task_id, "")
+
+            if ok_name or ok_ticket or ok_priority or ok_tribe or ok_req or ok_chan or ok_cat or ok_due or ok_sub or ok_started or ok_finished:
                 self._show_saved_effect()
 
     def _show_saved_effect(self):
+        self._cancel_restore_timer()
+        self._is_showing_saved = True
         self.save_btn.setEnabled(False)
         self.save_btn.setText("✓ Guardado")
         self.save_btn.setProperty("saved", "true")
         self.save_btn.style().unpolish(self.save_btn)
         self.save_btn.style().polish(self.save_btn)
-        QTimer.singleShot(600, self._restore_save_btn)
+        self._restore_timer = QTimer(self)
+        self._restore_timer.setSingleShot(True)
+        self._restore_timer.timeout.connect(self._restore_save_btn)
+        self._restore_timer.start(600)
 
     def _restore_save_btn(self):
+        self._is_showing_saved = False
         self.save_btn.setProperty("saved", "false")
         self.save_btn.setText("Guardar")
         self.save_btn.setEnabled(True)
         self.save_btn.style().unpolish(self.save_btn)
         self.save_btn.style().polish(self.save_btn)
-        self.on_close_callback()
+        # No llamar on_close_callback aquí: evita segfault al pulsar ESC
+        # El tablero se refresca al cerrar el diálogo (open_task_detail retorna)
 
     def _on_delete(self):
         reply = QMessageBox.question(
@@ -611,6 +683,7 @@ class TaskDetailDialog(QDialog):
         )
         if reply == QMessageBox.StandardButton.Yes and self.board.delete_task(self.task_id):
             self.on_close_callback()
+            self._cancel_restore_timer()
             self.accept()
 
     def _on_state_changed(self):
@@ -646,14 +719,21 @@ class TaskDetailDialog(QDialog):
                     started_raw = self.started_at_edit.text().strip()
                     if started_raw and (iso_val := parse_date_to_iso(started_raw)):
                         self.board.update_task_started_at(self.task_id, iso_val)
-                # Si está en Done sin fecha de fin, asignarla
+                if hasattr(self, "finished_at_edit"):
+                    finished_raw = self.finished_at_edit.text().strip()
+                    if finished_raw and (iso_val := parse_date_to_iso(finished_raw)):
+                        self.board.update_task_finished_at(self.task_id, iso_val)
+                    elif not finished_raw:
+                        self.board.update_task_finished_at(self.task_id, "")
+                # Si está en Done sin fecha de fin y no la editaron, asignar ahora
                 if target == "done":
                     task = self.board.get_task(self.task_id)
-                    if not task.get("finished_at"):
+                    if not task.get("finished_at") and not (hasattr(self, "finished_at_edit") and self.finished_at_edit.text().strip()):
                         self.board.update_task_finished_at(
                             self.task_id, datetime.now(TZ_APP).isoformat()
                         )
             self.on_close_callback()
+            self._cancel_restore_timer()
             self.accept()
             return
         if self.board.get_task(self.task_id):
@@ -671,8 +751,15 @@ class TaskDetailDialog(QDialog):
                 started_raw = self.started_at_edit.text().strip()
                 if started_raw and (iso_val := parse_date_to_iso(started_raw)):
                     self.board.update_task_started_at(self.task_id, iso_val)
+            if hasattr(self, "finished_at_edit"):
+                finished_raw = self.finished_at_edit.text().strip()
+                if finished_raw and (iso_val := parse_date_to_iso(finished_raw)):
+                    self.board.update_task_finished_at(self.task_id, iso_val)
+                elif not finished_raw:
+                    self.board.update_task_finished_at(self.task_id, "")
         if self.board.move_task(self.task_id, target):
             self.on_close_callback()
+            self._cancel_restore_timer()
             self.accept()
         else:
             self.state_combo.blockSignals(True)

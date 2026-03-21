@@ -6,6 +6,7 @@ Separa la lógica de exportación y datos de la vista.
 from datetime import datetime
 
 from domain.taskboard import TZ_APP
+from domain.taskboard.date_ranges import month_range, week_range
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,48 @@ class ReportsPresenter:
     def suggest_filename_excel(self) -> str:
         """Nombre sugerido para exportación Excel."""
         return f"actividades_{datetime.now(TZ_APP).strftime('%Y%m%d_%H%M')}.xlsx"
+
+    def get_time_report(self, from_date: datetime, to_date: datetime) -> dict[str, Any]:
+        """Reporte de tiempo por categoría en el periodo (activo vs detenido)."""
+        svc = self._get_export_service()
+        return svc.get_time_report(from_date, to_date)
+
+    def export_time_report_to_excel(self, from_date: datetime, to_date: datetime, filepath: Path) -> bool:
+        """Exporta reporte de tiempo + actividades actuales a Excel (hoja extra)."""
+        svc = self._get_export_service()
+        report = svc.get_time_report(from_date, to_date)
+        activities = svc.get_all_activities()
+        subtasks = svc.get_all_subtasks()
+        transitions = svc.get_all_transitions()
+        return self._exporter.export_with_time_report(
+            activities, subtasks, transitions, report, filepath
+        )
+
+    def suggest_filename_time_report(self) -> str:
+        """Nombre sugerido para exportación del reporte de tiempo."""
+        return f"reporte_tiempo_{datetime.now(TZ_APP).strftime('%Y%m%d_%H%M')}.xlsx"
+
+    def export_time_summary_to_excel(self, from_date: datetime, to_date: datetime, filepath: Path) -> bool:
+        """Exporta solo resumen por categoría a Excel."""
+        svc = self._get_export_service()
+        report = svc.get_time_report(from_date, to_date)
+        return self._exporter.export_time_summary_only(report, filepath)
+
+    def export_time_detail_to_excel(self, from_date: datetime, to_date: datetime, filepath: Path) -> bool:
+        """Exporta solo detalle por tarea a Excel."""
+        svc = self._get_export_service()
+        report = svc.get_time_report(from_date, to_date)
+        return self._exporter.export_time_detail_only(report, filepath)
+
+    @staticmethod
+    def week_range() -> tuple[datetime, datetime]:
+        """Inicio y fin de la semana actual. Delegado a dominio."""
+        return week_range()
+
+    @staticmethod
+    def month_range() -> tuple[datetime, datetime]:
+        """Inicio y fin del mes actual. Delegado a dominio."""
+        return month_range()
 
     def get_column_items(self) -> list[tuple[str, str]]:
         """Retorna [(label, key), ...] del maestro kanban_columns, ordenado por order."""

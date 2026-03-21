@@ -11,10 +11,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from domain.taskboard.utils import format_duration_for_display
 from presentation.modules.taskboard import CompactTaskRow, open_task_detail, open_task_create
 from presentation.theme import ObjectNames
 
-_MAX_TASKS_PER_SECTION = 4
+ROWS_VISIBLE = 3
+ROW_HEIGHT = 34
+ROW_SPACING = 3
+SECTION_CONTENT_HEIGHT = ROWS_VISIBLE * ROW_HEIGHT + (ROWS_VISIBLE - 1) * ROW_SPACING + 12
 
 
 class InProgressCompact(QWidget):
@@ -57,20 +61,12 @@ class InProgressCompact(QWidget):
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.setSpacing(0)
 
-        scroll = QScrollArea()
-        scroll.setObjectName("widgetTicketsScroll")
-        scroll.setWidgetResizable(True)
-        scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setMinimumHeight(180)
-
         self._content = QWidget()
         self._content_layout = QVBoxLayout(self._content)
         self._content_layout.setContentsMargins(0, 0, 0, 0)
         self._content_layout.setSpacing(0)
 
-        # Sección En progreso
+        # Sección En progreso (scroll interno, máx 3 visibles)
         prog_header = QFrame()
         prog_header.setObjectName("sectionBlock")
         prog_header.setProperty("section", "in_progress")
@@ -96,11 +92,20 @@ class InProgressCompact(QWidget):
         self._prog_list.setProperty("section", "in_progress")
         self._prog_layout = QVBoxLayout(self._prog_list)
         self._prog_layout.setContentsMargins(10, 0, 10, 10)
-        self._prog_layout.setSpacing(3)
+        self._prog_layout.setSpacing(ROW_SPACING)
         self._prog_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self._content_layout.addWidget(self._prog_list)
+        prog_scroll = QScrollArea()
+        prog_scroll.setObjectName("widgetTicketsScroll")
+        prog_scroll.setWidgetResizable(True)
+        prog_scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        prog_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        prog_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        prog_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        prog_scroll.setFixedHeight(SECTION_CONTENT_HEIGHT)
+        prog_scroll.setWidget(self._prog_list)
+        self._content_layout.addWidget(prog_scroll)
 
-        # Sección Detenidas
+        # Sección Detenidas (scroll interno, máx 3 visibles)
         det_header = QFrame()
         det_header.setObjectName("sectionBlock")
         det_header.setProperty("section", "detenidas")
@@ -121,12 +126,20 @@ class InProgressCompact(QWidget):
         self._det_list.setProperty("section", "detenidas")
         self._det_layout = QVBoxLayout(self._det_list)
         self._det_layout.setContentsMargins(10, 0, 10, 10)
-        self._det_layout.setSpacing(3)
+        self._det_layout.setSpacing(ROW_SPACING)
         self._det_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self._content_layout.addWidget(self._det_list)
+        det_scroll = QScrollArea()
+        det_scroll.setObjectName("widgetTicketsScroll")
+        det_scroll.setWidgetResizable(True)
+        det_scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        det_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        det_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        det_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        det_scroll.setFixedHeight(SECTION_CONTENT_HEIGHT)
+        det_scroll.setWidget(self._det_list)
+        self._content_layout.addWidget(det_scroll)
 
-        scroll.setWidget(self._content)
-        card_layout.addWidget(scroll, 1)
+        card_layout.addWidget(self._content, 1)
         layout.addWidget(card, 1)
 
         self._refresh()
@@ -146,7 +159,7 @@ class InProgressCompact(QWidget):
         self._add_btn.setEnabled(can_add)
         self._header_add_btn.setEnabled(can_add)
 
-        for t in tasks_progress[:_MAX_TASKS_PER_SECTION]:
+        for t in tasks_progress:
             row = CompactTaskRow(
                 t.get("name", ""),
                 started_at=t.get("started_at"),
@@ -162,12 +175,12 @@ class InProgressCompact(QWidget):
             empty.setObjectName(ObjectNames.EMPTY_STATE)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._prog_layout.addWidget(empty)
-        elif len(tasks_progress) > _MAX_TASKS_PER_SECTION:
-            more = QLabel(f"+{len(tasks_progress) - _MAX_TASKS_PER_SECTION} más")
-            more.setObjectName("sectionMoreLabel")
-            self._prog_layout.addWidget(more)
 
-        for t in tasks_detenidas[:_MAX_TASKS_PER_SECTION]:
+        transitions = self.board.data.get("transitions", [])
+        for t in tasks_detenidas:
+            dur = format_duration_for_display(
+                t["id"], t.get("started_at"), t.get("finished_at"), "detenido", transitions
+            )
             row = CompactTaskRow(
                 t.get("name", ""),
                 started_at=t.get("started_at"),
@@ -176,6 +189,7 @@ class InProgressCompact(QWidget):
                 max_name_len=50,
                 ticket=t.get("ticket", ""),
                 section="detenidas",
+                duration_str=dur,
             )
             self._det_layout.addWidget(row)
         if len(tasks_detenidas) == 0:
@@ -183,10 +197,6 @@ class InProgressCompact(QWidget):
             empty.setObjectName(ObjectNames.EMPTY_STATE)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._det_layout.addWidget(empty)
-        elif len(tasks_detenidas) > _MAX_TASKS_PER_SECTION:
-            more = QLabel(f"+{len(tasks_detenidas) - _MAX_TASKS_PER_SECTION} más")
-            more.setObjectName("sectionMoreLabel")
-            self._det_layout.addWidget(more)
 
     def _clear_layout(self, layout):
         while layout.count():

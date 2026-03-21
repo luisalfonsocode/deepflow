@@ -7,7 +7,7 @@ from domain.taskboard.utils import format_task_duration
 
 
 class CompactTaskRow(QFrame):
-    """Fila compacta de tarea: nombre + duración (started_at → ahora o finished_at)."""
+    """Fila compacta de tarea: nombre + duración (In Progress) o tiempo detenido (Detenido)."""
 
     def __init__(
         self,
@@ -19,6 +19,7 @@ class CompactTaskRow(QFrame):
         max_name_len: int = 50,
         ticket: str = "",
         section: str = "in_progress",
+        duration_str: str | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -43,7 +44,7 @@ class CompactTaskRow(QFrame):
         lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout.addWidget(lbl, 1)
 
-        duration = format_task_duration(started_at, finished_at, column_key)
+        duration = duration_str if duration_str is not None else format_task_duration(started_at, finished_at, column_key)
         dur_lbl = QLabel(duration)
         dur_lbl.setObjectName("compactTaskDuration")
         dur_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)

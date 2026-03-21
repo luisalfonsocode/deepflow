@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from domain.taskboard import format_task_duration
+from domain.taskboard import format_task_duration, format_duration_for_display
 from domain.taskboard.utils import col_key_to_display
 from presentation.shared.dnd import DeepFlowDropTargetMixin, make_task_mime_data
 from presentation.theme import ObjectNames
@@ -172,6 +172,7 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         finished_at: str | None = None,
         ticket: str = "",
         prioridad: bool = False,
+        duration_str: str | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -202,8 +203,8 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         self.name_label.setMaximumHeight(120)
         layout.addWidget(self.name_label, 1)
 
-        duration_str = format_task_duration(started_at, finished_at, column_key)
-        self.duration_label = QLabel(duration_str)
+        disp_duration = duration_str if duration_str is not None else format_task_duration(started_at, finished_at, column_key)
+        self.duration_label = QLabel(disp_duration)
         self.duration_label.setObjectName("taskDuration")
         layout.addWidget(self.duration_label)
 
@@ -220,13 +221,13 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         if (
             event.button() == Qt.MouseButton.LeftButton
             and self.on_click
             and not getattr(self, "drag_started", False)
         ):
             self.on_click(self.task_id)
-        super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         if (

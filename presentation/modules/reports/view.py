@@ -1,19 +1,22 @@
 """
 Vista del módulo Reports.
-3 reportes: Tareas, Subtareas, Transiciones.
+4 reportes: Tareas, Subtareas, Transiciones, Tiempo por categoría.
 Tablas editables tipo Excel: editar celdas, insertar y eliminar filas.
 """
 
 import logging
+from datetime import datetime
 from pathlib import Path
 
 LOG = logging.getLogger(__name__)
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QDate, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QBrush, QColor
 from presentation.widgets_common import ComboBoxNoWheelUnfocused
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QComboBox,
+    QDateEdit,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -21,6 +24,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QStyledItemDelegate,
     QTabWidget,
     QTableWidget,
@@ -29,8 +33,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from domain.taskboard import TZ_APP
 from domain.taskboard.utils import format_date_display, parse_date_to_iso
 from infrastructure.system import open_with_default_app
+from presentation.modules.reports.time_report_tab import TimeReportTab
 from presentation.modules.taskboard.widgets import TaskInputDialog
 from presentation.presenters.reports_presenter import ReportsPresenter
 from presentation.style_loader import load_styles
@@ -284,6 +290,13 @@ class ReportsView(QWidget):
         self.empty_transitions.hide()
         self.tabs.addTab(tab_transitions, "Transiciones")
 
+        self.time_report_tab = TimeReportTab()
+        self.time_report_tab.data_requested.connect(self._on_time_data_requested)
+        self.time_report_tab.btn_export_summary.clicked.connect(self._on_export_time_summary)
+        self.time_report_tab.btn_export_detail.clicked.connect(self._on_export_time_detail)
+        self.tabs.addTab(self.time_report_tab, "Tiempo")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+
         layout.addWidget(self.tabs, 1)
 
         self._refresh()
@@ -506,6 +519,8 @@ class ReportsView(QWidget):
                 self._refresh()
 
     def _on_export_excel(self):
+        """Exporta a Excel: Tareas, Subtareas, Transiciones y Reporte de tiempo (periodo del tab Tiempo)."""
+        from_dt, to_dt = self.time_report_tab.get_date_range()
         activities = self._presenter.load_activities()
         subtasks = self._presenter.load_subtasks()
         transitions = self._presenter.load_transitions()
@@ -515,7 +530,7 @@ class ReportsView(QWidget):
             )
             return
 
-        default_name = self._presenter.suggest_filename_excel()
+        default_name = self._presenter.suggest_filename_time_report()
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Exportar a Excel",
@@ -530,9 +545,14 @@ class ReportsView(QWidget):
             path_obj = path_obj.with_suffix(".xlsx")
 
         try:
-            ok = self._presenter.export_to_excel(path_obj)
+            ok = self._presenter.export_time_report_to_excel(from_dt, to_dt, path_obj)
             if ok:
                 open_with_default_app(path_obj)
+                QMessageBox.information(
+                    self, "Exportado",
+                    "Exportado correctamente.\n"
+                    "Incluye: Tareas, Subtareas, Transiciones y Reporte de tiempo por categoría."
+                )
             else:
                 QMessageBox.warning(
                     self, "Exportar",
@@ -542,6 +562,62 @@ class ReportsView(QWidget):
             LOG.exception("Error al exportar a Excel")
             QMessageBox.critical(self, "Error", f"Error al exportar:\n{e}")
 
+    def _on_export_time_summary(self):
+        """Exporta resumen por categoría del tab Tiempo a Excel."""
+        from_dt, to_dt = self.time_report_tab.get_date_range()
+        default = f"resumen_tiempo_{datetime.now(TZ_APP).strftime('%Y%m%d_%H%M')}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Exportar resumen", default, "Excel (*.xlsx);;Todos (*)"
+        )
+        if not path:
+            return
+        path_obj = Path(path)
+        if path_obj.suffix.lower() != ".xlsx":
+            path_obj = path_obj.with_suffix(".xlsx")
+        try:
+            if self._presenter.export_time_summary_to_excel(from_dt, to_dt, path_obj):
+                open_with_default_app(path_obj)
+                QMessageBox.information(self, "Exportado", "Resumen por categoría exportado.")
+            else:
+                QMessageBox.warning(self, "Exportar", "No se pudo exportar. pip install openpyxl")
+        except Exception as e:
+            LOG.exception("Error al exportar resumen")
+            QMessageBox.critical(self, "Error", f"Error:\n{e}")
+
+    def _on_export_time_detail(self):
+        """Exporta detalle por tarea del tab Tiempo a Excel."""
+        from_dt, to_dt = self.time_report_tab.get_date_range()
+        default = f"detalle_tiempo_{datetime.now(TZ_APP).strftime('%Y%m%d_%H%M')}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Exportar detalle", default, "Excel (*.xlsx);;Todos (*)"
+        )
+        if not path:
+            return
+        path_obj = Path(path)
+        if path_obj.suffix.lower() != ".xlsx":
+            path_obj = path_obj.with_suffix(".xlsx")
+        try:
+            if self._presenter.export_time_detail_to_excel(from_dt, to_dt, path_obj):
+                open_with_default_app(path_obj)
+                QMessageBox.information(self, "Exportado", "Detalle por tarea exportado.")
+            else:
+                QMessageBox.warning(self, "Exportar", "No se pudo exportar. pip install openpyxl")
+        except Exception as e:
+            LOG.exception("Error al exportar detalle")
+            QMessageBox.critical(self, "Error", f"Error:\n{e}")
+
+    def _on_tab_changed(self, index: int):
+        """Al cambiar al tab Tiempo, pedir datos (diferido para que el tab esté visible)."""
+        tab_tiempo_index = 2
+        if index == tab_tiempo_index:
+            QTimer.singleShot(0, self.time_report_tab.request_initial_data)
+
+    def _on_time_data_requested(self, from_dt: datetime, to_dt: datetime):
+        """El tab Tiempo pide datos. Obtiene el reporte y actualiza el tab."""
+        report = self._presenter.get_time_report(from_dt, to_dt)
+        self.time_report_tab.set_report_data(report)
+
     def showEvent(self, event):
         super().showEvent(event)
         self._refresh()
+        self.time_report_tab.request_initial_data()

@@ -66,6 +66,29 @@ def format_task_duration(
     return "-"
 
 
+def format_duration_for_display(
+    task_id: str,
+    started_at: str | None,
+    finished_at: str | None,
+    column_key: str,
+    transitions: list | None,
+) -> str:
+    """
+    Duración para mostrar en UI según columna.
+    - in_progress: tiempo activo (started_at → ahora)
+    - detenido: tiempo acumulado en Detenido (desde transiciones)
+    - done: tiempo hasta finalizar (started_at → finished_at)
+    """
+    if column_key == "in_progress":
+        return format_task_duration(started_at, None, "in_progress")
+    if column_key == "detenido":
+        _, detenido_secs = compute_time_in_columns(task_id, transitions or [], "detenido")
+        return format_seconds_duration(detenido_secs)
+    if column_key == "done":
+        return format_task_duration(started_at, finished_at, "done")
+    return format_task_duration(started_at, finished_at, column_key)
+
+
 def _format_duration_between(
     start_iso: str | None,
     end_iso: str | None,
@@ -157,6 +180,268 @@ def format_seconds_duration(seconds: int) -> str:
     if seconds >= 86400:
         return f"{seconds // 86400}d"
     return f"{max(1, seconds // 3600)}h"
+
+
+def _parse_ts(ts_str: str | None):
+    """Parsea timestamp ISO a datetime en TZ_APP. None si falla."""
+    if not ts_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=TZ_APP)
+        return dt.astimezone(TZ_APP)
+    except (ValueError, TypeError):
+        return None
+
+
+def compute_time_per_task_in_period(
+    transitions: list[dict],
+    from_date: datetime,
+    to_date: datetime,
+) -> dict[str, tuple[int, int]]:
+    """
+    Calcula (segundos_activo, segundos_detenido) por task_id en el rango [from_date, to_date].
+    Solo cuenta tiempo que cae dentro del periodo.
+    """
+    from_date = from_date.replace(tzinfo=TZ_APP) if from_date.tzinfo is None else from_date
+    to_date = to_date.replace(tzinfo=TZ_APP) if to_date.tzinfo is None else to_date
+    now = datetime.now(TZ_APP)
+
+    # Agrupar transiciones por task_id
+    by_task: dict[str, list[dict]] = {}
+    for t in transitions or []:
+        if not t.get("task_id") or not t.get("timestamp"):
+            continue
+        tid = t["task_id"]
+        if tid not in by_task:
+            by_task[tid] = []
+        by_task[tid].append(dict(t))
+
+    result: dict[str, tuple[int, int]] = {}
+
+    def clamp(start: datetime, end: datetime) -> int:
+        """Segundos de [start, end] intersectado con [from_date, to_date]."""
+        s = max(start, from_date)
+        e = min(end, to_date)
+        if s >= e:
+            return 0
+        return int((e - s).total_seconds())
+
+    for task_id, trans_list in by_task.items():
+        sorted_trans = sorted(trans_list, key=lambda x: x.get("timestamp", ""))
+        active_secs = detenido_secs = 0
+        col = sorted_trans[0].get("to_column")
+        start = _parse_ts(sorted_trans[0]["timestamp"])
+        if not start:
+            continue
+
+        for t in sorted_trans[1:]:
+            ts = _parse_ts(t.get("timestamp", ""))
+            if not ts:
+                continue
+            delta = clamp(start, ts)
+            if col == "in_progress":
+                active_secs += delta
+            elif col == "detenido":
+                detenido_secs += delta
+            col = t.get("to_column")
+            start = ts
+
+        end_now = min(now, to_date)
+        delta = clamp(start, end_now)
+        if col == "in_progress":
+            active_secs += delta
+        elif col == "detenido":
+            detenido_secs += delta
+
+        if active_secs > 0 or detenido_secs > 0:
+            result[task_id] = (active_secs, detenido_secs)
+
+    return result
+
+
+def compute_time_per_task_from_task_dates(
+    board_data: dict,
+    columns: list[str],
+    from_date: datetime,
+    to_date: datetime,
+) -> dict[str, tuple[int, int]]:
+    """
+    Calcula (active_secs, 0) por task_id usando started_at y finished_at de cada tarea.
+    Incluye tanto tareas cerradas (con finished_at) como no cerradas (in_progress, detenido).
+    Para tareas sin finished_at: bar_end = min(now, to_date).
+    Prioridad sobre transiciones: las fechas editadas por el usuario son la fuente de verdad.
+    Todo el tiempo se cuenta como activo; detenido_secs=0.
+    """
+    from_date = from_date.replace(tzinfo=TZ_APP) if from_date.tzinfo is None else from_date
+    to_date = to_date.replace(tzinfo=TZ_APP) if to_date.tzinfo is None else to_date
+    now = datetime.now(TZ_APP)
+
+    result: dict[str, tuple[int, int]] = {}
+    seen: set[str] = set()
+
+    for col in columns:
+        for t in (board_data.get(col, []) or []):
+            if not isinstance(t, dict) or not t.get("id"):
+                continue
+            task_id = t["id"]
+            if task_id in seen:
+                continue
+            started_iso = t.get("started_at")
+            if not started_iso:
+                continue
+            bar_start = _parse_ts(started_iso)
+            if not bar_start:
+                continue
+            seen.add(task_id)
+
+            finished_iso = t.get("finished_at")
+            bar_end = _parse_ts(finished_iso) if finished_iso else min(now, to_date)
+            if not bar_end:
+                bar_end = min(now, to_date)
+
+            if bar_start >= to_date or bar_end <= from_date:
+                continue
+            s = max(bar_start, from_date)
+            e = min(bar_end, to_date)
+            if s >= e:
+                continue
+            secs = int((e - s).total_seconds())
+            if secs > 0:
+                result[task_id] = (secs, 0)
+
+    return result
+
+
+def get_stints_per_task_in_period(
+    transitions: list[dict],
+    from_date: datetime,
+    to_date: datetime,
+) -> list[dict]:
+    """
+    Retorna lista de stints (períodos en columna) por tarea en el rango.
+    Cada stint: {task_id, task_name, start, end, column_key}.
+    Solo in_progress y detenido (para timeline).
+    """
+    from_date = from_date.replace(tzinfo=TZ_APP) if from_date.tzinfo is None else from_date
+    to_date = to_date.replace(tzinfo=TZ_APP) if to_date.tzinfo is None else to_date
+    now = datetime.now(TZ_APP)
+
+    by_task: dict[str, list[dict]] = {}
+    for t in transitions or []:
+        if not t.get("task_id") or not t.get("timestamp"):
+            continue
+        tid = t["task_id"]
+        if tid not in by_task:
+            by_task[tid] = []
+        by_task[tid].append(dict(t))
+
+    result: list[dict] = []
+
+    def clamp_interval(start: datetime, end: datetime) -> tuple[datetime, datetime] | None:
+        s = max(start, from_date)
+        e = min(end, to_date)
+        if s >= e:
+            return None
+        return (s, e)
+
+    for task_id, trans_list in by_task.items():
+        sorted_trans = sorted(trans_list, key=lambda x: x.get("timestamp", ""))
+        col = sorted_trans[0].get("to_column")
+        start = _parse_ts(sorted_trans[0]["timestamp"])
+        if not start:
+            continue
+        task_name = sorted_trans[0].get("task_name", "")
+
+        for t in sorted_trans[1:]:
+            ts = _parse_ts(t.get("timestamp", ""))
+            if not ts:
+                continue
+            if col in ("in_progress", "detenido"):
+                interval = clamp_interval(start, ts)
+                if interval:
+                    result.append({
+                        "task_id": task_id,
+                        "task_name": task_name,
+                        "start": interval[0],
+                        "end": interval[1],
+                        "column_key": col,
+                    })
+            col = t.get("to_column")
+            start = ts
+            task_name = t.get("task_name", task_name)
+
+        end_now = min(now, to_date)
+        if col in ("in_progress", "detenido"):
+            interval = clamp_interval(start, end_now)
+            if interval:
+                result.append({
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "start": interval[0],
+                    "end": interval[1],
+                    "column_key": col,
+                })
+
+    return result
+
+
+def get_task_bars_for_timeline(
+    board_data: dict,
+    columns: list[str],
+    from_date: datetime,
+    to_date: datetime,
+) -> list[dict]:
+    """
+    Una barra por tarea usando started_at y finished_at de cada tarea.
+    Incluye tareas cerradas y no cerradas (in_progress, detenido).
+    Sin finished_at: bar_end = min(now, to_date).
+    Solo tareas con started_at que se solapan con el periodo.
+    """
+    from_date = from_date.replace(tzinfo=TZ_APP) if from_date.tzinfo is None else from_date
+    to_date = to_date.replace(tzinfo=TZ_APP) if to_date.tzinfo is None else to_date
+    now = datetime.now(TZ_APP)
+
+    result: list[dict] = []
+    seen: set[str] = set()
+
+    for col in columns:
+        for t in (board_data.get(col, []) or []):
+            if not isinstance(t, dict) or not t.get("id"):
+                continue
+            task_id = t["id"]
+            if task_id in seen:
+                continue
+            started_iso = t.get("started_at")
+            if not started_iso:
+                continue
+            bar_start = _parse_ts(started_iso)
+            if not bar_start:
+                continue
+            seen.add(task_id)
+
+            finished_iso = t.get("finished_at")
+            bar_end = _parse_ts(finished_iso) if finished_iso else min(now, to_date)
+
+            if bar_start >= to_date or bar_end <= from_date:
+                continue
+            bar_start_clamped = max(bar_start, from_date)
+            bar_end_clamped = min(bar_end, to_date)
+            if bar_start_clamped >= bar_end_clamped:
+                continue
+
+            result.append({
+                "task_id": task_id,
+                "task_name": t.get("name", "") or task_id,
+                "bar_start": bar_start_clamped,
+                "bar_end": bar_end_clamped,
+                "started_at": bar_start,
+                "finished_at": bar_end,
+            })
+
+    result.sort(key=lambda x: (x["bar_start"], x["task_name"]))
+    return result
 
 
 def format_date_display(iso_string: str | None) -> str:

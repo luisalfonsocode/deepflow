@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 )
 
 from application.taskboard import BoardService
+from domain.taskboard.utils import format_duration_for_display
 from presentation.modules.taskboard.dialogs import open_task_detail, open_task_create
 from presentation.modules.taskboard.widgets import TaskCard, ColumnWidget
 from presentation.style_loader import load_styles
@@ -97,6 +98,7 @@ class TaskBoardView(QWidget):
 
     def _rebuild_ui(self):
         self.board.load()
+        transitions = self.board.data.get("transitions", [])
         for col in self.columns:
             cw = self.columns[col]
             while cw.tasks_layout.count() > 1:  # keep drop_zone
@@ -105,6 +107,11 @@ class TaskBoardView(QWidget):
                     item.widget().deleteLater()
             tasks = self.board.data.get(col, [])
             for t in tasks:
+                duration_str = None
+                if col == "detenido":
+                    duration_str = format_duration_for_display(
+                        t["id"], t.get("started_at"), t.get("finished_at"), "detenido", transitions
+                    )
                 card = TaskCard(
                     t["id"],
                     t.get("name", ""),
@@ -115,6 +122,7 @@ class TaskBoardView(QWidget):
                     finished_at=t.get("finished_at"),
                     ticket=t.get("ticket", ""),
                     prioridad=bool(t.get("prioridad", False)),
+                    duration_str=duration_str,
                     parent=cw.tasks_widget,
                 )
                 cw.tasks_layout.insertWidget(cw.tasks_layout.count() - 1, card)

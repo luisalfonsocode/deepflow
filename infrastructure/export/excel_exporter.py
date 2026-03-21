@@ -103,3 +103,126 @@ class ExcelActivityExporter:
         wb.save(filepath)
         LOG.info("Exportación Excel completada: %s", filepath)
         return True
+
+    def export_with_time_report(
+        self,
+        activities: list[dict[str, Any]],
+        subtasks: list[dict[str, Any]],
+        transitions: list[dict[str, Any]],
+        time_report: dict[str, Any],
+        filepath: Path,
+    ) -> bool:
+        """
+        Exporta Tareas, Subtareas, Transiciones y Reporte de tiempo (hoja extra).
+        El reporte incluye: resumen por categoría (activo/detenido/%) y detalle por tarea.
+        """
+        if not self.export(activities, subtasks, transitions, filepath):
+            return False
+        from openpyxl import load_workbook
+        wb = load_workbook(filepath)
+        ws_time = wb.create_sheet("Reporte de tiempo", 3)
+        from_date = time_report.get("from_date", "")
+        to_date = time_report.get("to_date", "")
+        if hasattr(from_date, "strftime"):
+            from_date = from_date.strftime("%Y-%m-%d")
+        if hasattr(to_date, "strftime"):
+            to_date = to_date.strftime("%Y-%m-%d")
+        ws_time.cell(row=1, column=1, value="Periodo:").font = Font(bold=True)
+        ws_time.cell(row=1, column=2, value=f"{from_date} a {to_date}")
+        ws_time.cell(row=2, column=1, value="")
+        row = 3
+        headers_sum = ["Categoría", "Tiempo activo", "Tiempo detenido", "% Total", "Tareas", "Tiempo (días)"]
+        for col, h in enumerate(headers_sum, 1):
+            ws_time.cell(row=row, column=col, value=h).font = Font(bold=True)
+        row += 1
+        for s in time_report.get("summary_by_categoria", []):
+            ws_time.cell(row=row, column=1, value=s.get("categoria", ""))
+            ws_time.cell(row=row, column=2, value=s.get("active_fmt", ""))
+            ws_time.cell(row=row, column=3, value=s.get("detenido_fmt", ""))
+            ws_time.cell(row=row, column=4, value=f"{s.get('pct_total', 0)}%")
+            ws_time.cell(row=row, column=5, value=s.get("task_count", 0))
+            ws_time.cell(row=row, column=6, value=s.get("tiempo_dias", 0))
+            row += 1
+        row += 2
+        headers_det = ["Tarea", "Ticket", "Categoría", "Tiempo activo", "Tiempo detenido"]
+        for col, h in enumerate(headers_det, 1):
+            ws_time.cell(row=row, column=col, value=h).font = Font(bold=True)
+        row += 1
+        for d in time_report.get("detail_by_task", []):
+            ws_time.cell(row=row, column=1, value=(d.get("name", ""))[:80])
+            ws_time.cell(row=row, column=2, value=d.get("ticket", ""))
+            ws_time.cell(row=row, column=3, value=d.get("categoria", ""))
+            ws_time.cell(row=row, column=4, value=d.get("active_fmt", ""))
+            ws_time.cell(row=row, column=5, value=d.get("detenido_fmt", ""))
+            row += 1
+        for c in range(1, 7):
+            ws_time.column_dimensions[get_column_letter(c)].width = 22
+        ws_time.column_dimensions["A"].width = 45
+        wb.save(filepath)
+        LOG.info("Exportación con reporte de tiempo: %s", filepath)
+        return True
+
+    def export_time_summary_only(self, time_report: dict[str, Any], filepath: Path) -> bool:
+        """Exporta solo resumen por categoría a Excel."""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Resumen por categoría"
+        from_date = time_report.get("from_date", "")
+        to_date = time_report.get("to_date", "")
+        if hasattr(from_date, "strftime"):
+            from_date = from_date.strftime("%Y-%m-%d")
+        if hasattr(to_date, "strftime"):
+            to_date = to_date.strftime("%Y-%m-%d")
+        ws.cell(row=1, column=1, value="Periodo:").font = Font(bold=True)
+        ws.cell(row=1, column=2, value=f"{from_date} a {to_date}")
+        row = 3
+        headers = ["Categoría", "Tiempo activo", "Tiempo detenido", "% Total", "Tareas", "Tiempo (días)"]
+        for col, h in enumerate(headers, 1):
+            ws.cell(row=row, column=col, value=h).font = Font(bold=True)
+        row += 1
+        for s in time_report.get("summary_by_categoria", []):
+            ws.cell(row=row, column=1, value=s.get("categoria", ""))
+            ws.cell(row=row, column=2, value=s.get("active_fmt", ""))
+            ws.cell(row=row, column=3, value=s.get("detenido_fmt", ""))
+            ws.cell(row=row, column=4, value=f"{s.get('pct_total', 0)}%")
+            ws.cell(row=row, column=5, value=s.get("task_count", 0))
+            ws.cell(row=row, column=6, value=s.get("tiempo_dias", 0))
+            row += 1
+        for c in range(1, 7):
+            ws.column_dimensions[get_column_letter(c)].width = 22
+        ws.column_dimensions["A"].width = 45
+        wb.save(filepath)
+        LOG.info("Exportación resumen tiempo: %s", filepath)
+        return True
+
+    def export_time_detail_only(self, time_report: dict[str, Any], filepath: Path) -> bool:
+        """Exporta solo detalle por tarea a Excel."""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Detalle por tarea"
+        from_date = time_report.get("from_date", "")
+        to_date = time_report.get("to_date", "")
+        if hasattr(from_date, "strftime"):
+            from_date = from_date.strftime("%Y-%m-%d")
+        if hasattr(to_date, "strftime"):
+            to_date = to_date.strftime("%Y-%m-%d")
+        ws.cell(row=1, column=1, value="Periodo:").font = Font(bold=True)
+        ws.cell(row=1, column=2, value=f"{from_date} a {to_date}")
+        row = 3
+        headers = ["Tarea", "Ticket", "Categoría", "Tiempo activo", "Tiempo detenido"]
+        for col, h in enumerate(headers, 1):
+            ws.cell(row=row, column=col, value=h).font = Font(bold=True)
+        row += 1
+        for d in time_report.get("detail_by_task", []):
+            ws.cell(row=row, column=1, value=(d.get("name", ""))[:80])
+            ws.cell(row=row, column=2, value=d.get("ticket", ""))
+            ws.cell(row=row, column=3, value=d.get("categoria", ""))
+            ws.cell(row=row, column=4, value=d.get("active_fmt", ""))
+            ws.cell(row=row, column=5, value=d.get("detenido_fmt", ""))
+            row += 1
+        for c in range(1, 6):
+            ws.column_dimensions[get_column_letter(c)].width = 22
+        ws.column_dimensions["A"].width = 45
+        wb.save(filepath)
+        LOG.info("Exportación detalle tiempo: %s", filepath)
+        return True
