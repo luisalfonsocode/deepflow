@@ -15,6 +15,36 @@ from domain.taskboard.utils import (
 )
 
 
+def _fill_timeline_gaps(
+    segments: list[dict],
+    bar_start: datetime,
+    bar_end: datetime,
+) -> list[dict]:
+    """
+    Rellena huecos en la barra con segmentos azules (activo).
+    Ej: barra 1-30, stints 5-10 azul, 10-12 rojo, 12-25 azul -> añade 1-5 y 25-30 azul.
+    """
+    if not segments:
+        return [{"start": bar_start, "end": bar_end, "column_key": "in_progress"}]
+    filled = []
+    segments = sorted(segments, key=lambda x: x.get("start", bar_start))
+    if bar_start < segments[0].get("start", bar_start):
+        filled.append({"start": bar_start, "end": segments[0]["start"], "column_key": "in_progress"})
+    for i, seg in enumerate(segments):
+        filled.append(seg)
+        if i + 1 < len(segments):
+            gap_end = segments[i + 1]["start"]
+            if seg["end"] < gap_end:
+                filled.append({"start": seg["end"], "end": gap_end, "column_key": "in_progress"})
+    if segments and segments[-1].get("end", bar_end) < bar_end:
+        filled.append({
+            "start": segments[-1]["end"],
+            "end": bar_end,
+            "column_key": "in_progress",
+        })
+    return sorted(filled, key=lambda x: x.get("start", bar_start))
+
+
 class ExportService:
     """Obtiene actividades del tablero y las exporta (Excel, etc.)."""
 
@@ -220,20 +250,21 @@ class ExportService:
             bar_end = bar.get("bar_end")
             segments = []
             task_stints = stints_by_task.get(tid, [])
-            task_stints.sort(key=lambda x: x.get("start"))
-            if task_stints:
+            task_stints.sort(key=lambda x: x.get("start") or from_date)
+            if task_stints and bar_start and bar_end:
                 for s in task_stints:
                     seg_start = s.get("start")
                     seg_end = s.get("end")
                     col_key = s.get("column_key", "in_progress")
                     if not seg_start or not seg_end:
                         continue
-                    s_ = max(seg_start, bar_start) if bar_start else seg_start
-                    e_ = min(seg_end, bar_end) if bar_end else seg_end
+                    s_ = max(seg_start, bar_start)
+                    e_ = min(seg_end, bar_end)
                     if s_ < e_:
                         segments.append({"start": s_, "end": e_, "column_key": col_key})
+                segments = _fill_timeline_gaps(segments, bar_start, bar_end)
             if not segments and bar_start and bar_end:
-                segments.append({"start": bar_start, "end": bar_end, "column_key": "in_progress"})
+                segments = [{"start": bar_start, "end": bar_end, "column_key": "in_progress"}]
             bar["segments"] = segments
 
         return {
