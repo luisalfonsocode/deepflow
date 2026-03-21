@@ -347,7 +347,7 @@ class TaskDetailDialog(QDialog):
         right_layout.addWidget(subtask_label)
 
         self._subtasks: list[dict] = [
-            {"text": s.get("text", ""), "done": bool(s.get("done", False))}
+            {"text": s.get("name", s.get("text", "")), "done": bool(s.get("done", False))}
             for s in task.get("subtasks", [])
         ]
         self._subtasks_container = QWidget()
@@ -458,9 +458,16 @@ class TaskDetailDialog(QDialog):
             wrap.setProperty("done", "true" if st["done"] else "false")
             self._subtasks_layout.addWidget(wrap)
 
+    def _sync_subtasks_from_edits(self):
+        """Sincroniza el texto actual de los QLineEdit a _subtasks (antes de guardar)."""
+        for i, edit in enumerate(getattr(self, "_subtask_edits", [])):
+            if i < len(self._subtasks):
+                self._subtasks[i]["text"] = edit.text().strip()
+
     def _persist_subtasks(self):
         """Guarda las subtareas inmediatamente en el backend (solo en edición)."""
         if not self._create_mode:
+            self._sync_subtasks_from_edits()
             self.board.update_task_subtasks(self.task_id, self._subtasks)
 
     def _on_add_subtask(self):
@@ -544,6 +551,7 @@ class TaskDetailDialog(QDialog):
             self.board.update_task_categoria(self.task_id, self.categoria_combo.currentText().strip())
             self.board.update_task_due_date(self.task_id, due_date)
             if self._subtasks:
+                self._sync_subtasks_from_edits()
                 self.board.update_task_subtasks(self.task_id, self._subtasks)
             self.on_close_callback()
             self.accept()
@@ -556,6 +564,7 @@ class TaskDetailDialog(QDialog):
             ok_chan = self.board.update_task_reporting_channel(self.task_id, reporting_channel)
             ok_cat = self.board.update_task_categoria(self.task_id, self.categoria_combo.currentText().strip())
             ok_due = self.board.update_task_due_date(self.task_id, due_date)
+            self._sync_subtasks_from_edits()
             ok_sub = self.board.update_task_subtasks(self.task_id, self._subtasks)
 
             # Inicio en progreso (dd/mm/aaaa)
@@ -631,6 +640,7 @@ class TaskDetailDialog(QDialog):
                 self.board.update_task_reporting_channel(self.task_id, reporting_channel)
                 self.board.update_task_categoria(self.task_id, categoria)
                 self.board.update_task_due_date(self.task_id, due_date)
+                self._sync_subtasks_from_edits()
                 self.board.update_task_subtasks(self.task_id, self._subtasks)
                 if hasattr(self, "started_at_edit"):
                     started_raw = self.started_at_edit.text().strip()
@@ -655,6 +665,7 @@ class TaskDetailDialog(QDialog):
             self.board.update_task_reporting_channel(self.task_id, reporting_channel)
             self.board.update_task_categoria(self.task_id, categoria)
             self.board.update_task_due_date(self.task_id, due_date)
+            self._sync_subtasks_from_edits()
             self.board.update_task_subtasks(self.task_id, self._subtasks)
             if hasattr(self, "started_at_edit"):
                 started_raw = self.started_at_edit.text().strip()
