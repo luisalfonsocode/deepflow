@@ -11,23 +11,21 @@ import transaction
 import ZODB
 import ZODB.FileStorage
 
-from domain.taskboard.constants import COLUMNS
-from domain.taskboard.masters import KANBAN_COLUMNS
+from domain.taskboard.masters import KANBAN_COLUMNS, KANBAN_COLUMNS_KEY, default_kanban_columns_dicts
 from infrastructure.persistence.config import get_zodb_path
 from infrastructure.persistence.schema_versions import CURRENT_SCHEMA_VERSION, migrate_to_latest
-
-# Maestros solo en código (domain). BD guarda solo columns + transitions.
 
 
 def _default_deepflow() -> dict[str, Any]:
     columns = {kc["key"]: [] for kc in KANBAN_COLUMNS}
-    return {"columns": columns, "transitions": []}
+    return {"columns": columns, "transitions": [], KANBAN_COLUMNS_KEY: default_kanban_columns_dicts()}
 
 
 def _legacy_to_v4(raw: dict[str, Any]) -> dict[str, Any]:
-    columns = {}
-    for col in COLUMNS:
-        columns[col] = list(raw.get(col, []) if isinstance(raw.get(col), list) else [])
+    columns = {
+        kc["key"]: list(raw.get(kc["key"], []) if isinstance(raw.get(kc["key"]), list) else [])
+        for kc in KANBAN_COLUMNS
+    }
     transitions = raw.get("transitions", []) if isinstance(raw.get("transitions"), list) else []
     return {"columns": columns, "transitions": transitions}
 
@@ -48,8 +46,9 @@ def _ensure_deepflow(root: Any) -> dict[str, Any]:
     elif "columns" not in container:
         container = dict(container)
         container["columns"] = {kc["key"]: [] for kc in KANBAN_COLUMNS}
-        for col in COLUMNS:
-            if col in container and isinstance(container[col], list):
+        for kc in KANBAN_COLUMNS:
+            col = kc["key"]
+            if col in container and isinstance(container.get(col), list):
                 container["columns"][col] = container[col]
 
     result = copy.deepcopy(container)
@@ -81,6 +80,8 @@ def _ensure_deepflow(root: Any) -> dict[str, Any]:
         result["canal_reporte"] = [dict(o) for o in ORIGEN_OPTIONS]
     if "categoria" not in result or not isinstance(result.get("categoria"), list):
         result["categoria"] = [dict(o) for o in CATEGORIA_OPTIONS]
+    if KANBAN_COLUMNS_KEY not in result or not isinstance(result.get(KANBAN_COLUMNS_KEY), list):
+        result[KANBAN_COLUMNS_KEY] = default_kanban_columns_dicts()
 
     return result
 
@@ -117,6 +118,7 @@ class ZODBBoardRepository:
                 "solicitante": copy.deepcopy(data.get("solicitante", [])),
                 "canal_reporte": copy.deepcopy(data.get("canal_reporte", [])),
                 "categoria": copy.deepcopy(data.get("categoria", [])),
+                KANBAN_COLUMNS_KEY: copy.deepcopy(data.get(KANBAN_COLUMNS_KEY, [])),
             }
             root["deepflow"] = to_save
             transaction.commit()

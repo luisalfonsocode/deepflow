@@ -53,7 +53,7 @@ MODULES = [
     {
         "id": "masters",
         "title": "Maestros",
-        "desc": "Tribu, Solicitante, Canal de reporte, Categoría",
+        "desc": "Tribu, Solicitante, Canal de reporte, Categoría, Columnas Kanban",
         "icon": "⚙️",
         "enabled": True,
         "factory": _masters_factory,

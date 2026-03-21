@@ -148,13 +148,15 @@ Define las columnas del tablero. Cada ítem:
 Valores por defecto:
 ```
 [
-  {key: "backlog",     label: "Backlog",     order: 1, wip_limit: 3},
+  {key: "backlog",     label: "Backlog",     order: 1, wip_limit: null},  # Sin límite: captura sin fricción
   {key: "todo",        label: "To Do",        order: 2, wip_limit: 3},
   {key: "in_progress", label: "In Progress",  order: 3, wip_limit: 3},
-  {key: "done",        label: "Done",         order: 4, wip_limit: 3},
-  {key: "detenido",    label: "Detenido",     order: 5, wip_limit: 3}
+  {key: "done",        label: "Done",         order: 4, wip_limit: null},  # Sin límite: finalizadas
+  {key: "detenido",    label: "Detenido",     order: 5, wip_limit: 5}
 ]
 ```
+
+`wip_limit: null` = sin límite. Editable en Maestros → Columnas Kanban.
 
 *Unicidad:* La aplicación valida que `key` sea único en cada maestro antes de insertar/actualizar.
 
@@ -492,7 +494,6 @@ ZODB no tiene triggers de base de datos. La lógica se ejecuta en la **capa de a
 | Repositorio            | `infrastructure/persistence/zodb_repository.py`  |
 | Migraciones            | `infrastructure/persistence/schema_versions.py`  |
 | Constantes (columnas)  | `domain/taskboard/constants.py`            |
-| Análisis BD            | [docs/analisis/base-datos-embebida.md](../docs/analisis/base-datos-embebida.md)     |
 
 ### Versiones de schema
 
@@ -501,7 +502,11 @@ ZODB no tiene triggers de base de datos. La lógica se ejecuta en la **capa de a
 | 1       | Columnas + transitions                           |
 | 2       | Campo `ticket` en tareas                          |
 | 3       | `tribe_and_squad`, `requester`, `reporting_channel` |
-| 4       | Maestros (origen, tribu_squad, solicitante, **kanban_columns**), Task, Subtask, transitions |
+| 4       | Maestros (origen, tribu_squad, solicitante), Task, Subtask, transitions |
+| 5       | Maestros persistentes (tribu_squad, solicitante, canal_reporte) |
+| 6       | Maestro categoria                                |
+| 7       | Backfill finished_at en tareas en Done           |
+| 8       | Maestro kanban_columns (wip_limit configurable por columna) |
 
 ### Diseño objetivo (v4)
 

@@ -29,6 +29,14 @@ def display_to_column_key(display: str) -> str | None:
 col_key_to_display = column_key_to_display
 
 
+def normalize_key_from_label(label: str) -> str:
+    """Deriva key interno desde label: minúsculas, espacios→_, ñ→n."""
+    s = (label or "").strip()
+    if not s:
+        return ""
+    return s.lower().replace(" ", "_").replace("ñ", "n")
+
+
 def format_duration_in_activity(entered_at: str | None) -> str:
     """
     Formato de duración: '5d' si >= 1 día, '5h' si < 1 día.

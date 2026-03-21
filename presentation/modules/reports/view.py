@@ -29,8 +29,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from domain.taskboard.masters import KANBAN_COLUMNS
-from domain.taskboard.utils import display_to_column_key, format_date_display, parse_date_to_iso
+from domain.taskboard.utils import format_date_display, parse_date_to_iso
 from infrastructure.system import open_with_default_app
 from presentation.modules.taskboard.widgets import TaskInputDialog
 from presentation.presenters.reports_presenter import ReportsPresenter
@@ -43,12 +42,6 @@ class _EmptyClipboard:
 
     def get_text(self) -> str:
         return ""
-
-
-_COLUMN_ITEMS = [
-    (c.get("label", ""), c.get("key", ""))
-    for c in sorted(KANBAN_COLUMNS, key=lambda x: x.get("order", 99))
-]
 
 
 class SubtasksModal(QDialog):
@@ -184,15 +177,17 @@ class ComboBoxDelegate(QStyledItemDelegate):
         cb = ComboBoxNoWheelUnfocused(parent)
         reports_view = self.parent()
         current_col = ""
+        column_items = []
         if hasattr(reports_view, "table_tareas") and hasattr(reports_view, "_presenter"):
+            column_items = reports_view._presenter.get_column_items()
             row = index.row()
             it = reports_view.table_tareas.item(row, 1)
             current_col = it.data(Qt.ItemDataRole.UserRole) or "" if it else ""
-            for label, key in _COLUMN_ITEMS:
+            for label, key in column_items:
                 if reports_view._presenter.can_add_to(key) or key == current_col:
                     cb.addItem(label, key)
         if cb.count() == 0:
-            for label, key in _COLUMN_ITEMS:
+            for label, key in column_items:
                 cb.addItem(label, key)
         return cb
 
@@ -412,7 +407,7 @@ class ReportsView(QWidget):
         elif col == 1:
             it = self.table_tareas.item(row, 1)
             val = it.text().strip()
-            col_key = display_to_column_key(val) or it.data(Qt.ItemDataRole.UserRole)
+            col_key = self._presenter.display_to_column_key(val) or it.data(Qt.ItemDataRole.UserRole)
             if col_key:
                 ok = self._presenter.update_task_state_by_key(task_id, col_key)
             else:

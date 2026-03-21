@@ -41,7 +41,7 @@ deepflow/
 | `styles.qss`     | Estilos visuales (tema claro, colores, componentes) |
 | `.cursorrules`   | Convenciones del proyecto para el IDE |
 
-**Directorio `data/`** (no versionar los archivos de base de datos; ver [docs/analisis/base-datos-embebida.md](../analisis/base-datos-embebida.md)):
+**Directorio `data/`** (no versionar los archivos de base de datos):
 - `data/db/deepflow_db.fs` – Base ZODB principal
 - `data/db/deepflow_db.fs.index`, `.lock`, `.tmp`
 - `data/db/deepflow_db.json` – JSON en carpeta datos
@@ -57,9 +57,9 @@ deepflow/
 domain/
 ├── __init__.py
 └── taskboard/
-    ├── constants.py    # COLUMNS, WIP_LIMIT_PER_COLUMN
-    ├── masters.py     # Maestros (origen, tribu, kanban)
-    └── utils.py       # col_key_to_display, format_*, compute_time_in_columns
+    ├── constants.py    # COLUMNS (legacy), WIP_LIMIT_PER_COLUMN, TZ_APP
+    ├── masters.py      # KANBAN_COLUMNS, get_column_keys, get_wip_limit
+    └── utils.py        # col_key_to_display, normalize_key_from_label, format_*, compute_time_in_columns
 ```
 
 ### application/ (casos de uso)
@@ -135,7 +135,8 @@ presentation/
 │
 ├── presenters/
 │   ├── __init__.py
-│   └── reports_presenter.py    # Orquesta Reports + ExportService + Excel
+│   ├── reports_presenter.py    # Orquesta Reports + ExportService + Excel
+│   └── masters_presenter.py    # Orquesta MastersView + BoardService
 │
 └── modules/
     ├── __init__.py
@@ -146,11 +147,14 @@ presentation/
     │   └── in_progress_compact.py   # Panel In Progress + Detenidas
     ├── taskboard/               # UI del Kanban
     │   ├── __init__.py
-    │   ├── view.py              # TaskBoardView (5 columnas)
+    │   ├── view.py              # TaskBoardView (columnas desde maestro)
     │   ├── widgets.py           # TaskCard, ColumnWidget, TaskInputDialog
     │   ├── dialogs.py           # TaskDetailDialog (detalle/edición)
     │   ├── task_row.py          # CompactTaskRow
-    │   └── summary_view.py     # Vista resumen (lista tareas)
+    │   └── summary_view.py      # Vista resumen (lista tareas)
+    ├── masters/                 # Vista Maestros (tribu, solicitante, kanban_columns)
+    │   ├── __init__.py
+    │   └── view.py              # MastersView (tabs editables)
     ├── reports/
     │   ├── __init__.py
     │   └── view.py              # ReportsView (3 tabs: Tareas, Subtareas, Transiciones)
@@ -169,6 +173,7 @@ main.py
        └─ Al hacer clic en módulo → ModuleModal con:
             · TaskBoardView (Kanban)
             · ReportsView (tabs + Excel)
+            · MastersView (Maestros + Columnas Kanban)
             · AlertsView (placeholder)
 ```
 
@@ -190,7 +195,8 @@ Exporta `task_id`, `ticket`, `task_name`, `started_at`, `finished_at`.
 tests/
 ├── __init__.py
 ├── conftest.py               # InMemoryBoardRepository, fixtures
-└── test_board_service.py     # Tests de BoardService (31 tests)
+├── test_board_service.py     # Tests de BoardService (39 tests)
+└── test_domain_utils.py      # Tests de domain.taskboard.utils (normalize_key_from_label, etc.)
 ```
 
 ---

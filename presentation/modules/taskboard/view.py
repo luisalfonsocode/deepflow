@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
 )
 
 from application.taskboard import BoardService
-from domain.taskboard import COLUMNS, col_key_to_display
 from presentation.modules.taskboard.dialogs import open_task_detail, open_task_create
 from presentation.modules.taskboard.widgets import TaskCard, ColumnWidget
 from presentation.style_loader import load_styles
@@ -31,6 +30,7 @@ class TaskBoardView(QWidget):
         self._build_ui()
 
     def _build_ui(self):
+        self.board.load()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -39,13 +39,14 @@ class TaskBoardView(QWidget):
         columns_layout.setSpacing(4)
 
         self.columns: dict[str, ColumnWidget] = {}
-        for col in COLUMNS:
+        for col in self.board.get_column_keys():
             show_create = col == "backlog"
             cw = ColumnWidget(
                 col,
                 self._on_move,
                 show_create_button=show_create,
                 on_show_dialog=self._show_task_dialog if show_create else None,
+                display_label=self.board.col_key_to_display(col),
             )
             self.columns[col] = cw
             columns_layout.addWidget(cw, 1)
@@ -91,11 +92,12 @@ class TaskBoardView(QWidget):
             QMessageBox.warning(
                 self.window(),
                 "No se puede mover",
-                f"La columna {col_key_to_display(target_column)} está llena (límite WIP alcanzado).",
+                f"La columna {self.board.col_key_to_display(target_column)} está llena (límite WIP alcanzado).",
             )
 
     def _rebuild_ui(self):
-        for col in COLUMNS:
+        self.board.load()
+        for col in self.columns:
             cw = self.columns[col]
             while cw.tasks_layout.count() > 1:  # keep drop_zone
                 item = cw.tasks_layout.takeAt(0)
@@ -124,4 +126,4 @@ class TaskBoardView(QWidget):
             if col == "backlog" and cw.create_btn:
                 cw.create_btn.setEnabled(self.board.can_add_to("backlog"))
 
-        self.overcapacity_changed.emit(any(self.board.is_overcapacity(c) for c in COLUMNS))
+        self.overcapacity_changed.emit(any(self.board.is_overcapacity(c) for c in self.columns))

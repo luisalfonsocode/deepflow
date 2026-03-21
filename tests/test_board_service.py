@@ -5,7 +5,6 @@ Ejecutar: pytest tests/test_board_service.py -v
 
 import pytest
 
-from domain.taskboard.constants import COLUMNS
 from application.taskboard import BoardService
 
 from tests.conftest import InMemoryBoardRepository
@@ -299,8 +298,8 @@ def test_persist_retorna_true(board_service):
 
 
 def test_data_tiene_todas_las_columnas(board_service):
-    """data incluye todas las columnas definidas."""
+    """data incluye todas las columnas del maestro kanban_columns."""
     d = board_service.data
-    for col in COLUMNS:
+    for col in board_service.get_column_keys():
         assert col in d
         assert isinstance(d[col], list)

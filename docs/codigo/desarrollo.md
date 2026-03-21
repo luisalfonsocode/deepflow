@@ -64,9 +64,9 @@ deepflow/
 
 ### Nueva columna en el tablero
 
-1. `domain/taskboard/constants.py`: Añadir a `COLUMNS`
-2. `domain/taskboard/masters.py`: Añadir en `KANBAN_COLUMNS` y en `col_key_to_display` (utils)
-3. Las vistas que iteran las columnas se actualizan automáticamente
+1. `domain/taskboard/masters.py`: Añadir en `KANBAN_COLUMNS` (key, label, order, wip_limit)
+2. `domain/taskboard/utils.py`: Añadir en `_COLUMN_DISPLAY` y `_DISPLAY_TO_COLUMN` (fallback)
+3. Migración: Si hay datos existentes sin la columna, crear migración en `schema_versions.py` que añada la columna vacía. El maestro `kanban_columns` se inicializa en v8; nuevas columnas pueden añadirse editando el maestro desde **Maestros → Columnas Kanban** o en migraciones futuras.
 
 ### Nuevo campo en tareas
 
@@ -77,6 +77,20 @@ deepflow/
 
 1. Crear clase con método `export(activities, subtasks, transitions, filepath) -> bool`
 2. Registrar en `ReportsPresenter` (inyección o por defecto)
+
+---
+
+## Dónde modificar qué (referencia rápida)
+
+| Cambio | Archivo(s) |
+|--------|------------|
+| Nuevas columnas Kanban | `domain/taskboard/masters.py` (KANBAN_COLUMNS), `domain/taskboard/utils.py` (_COLUMN_DISPLAY). Editar también desde Maestros → Columnas Kanban |
+| Límites WIP por defecto | `domain/taskboard/masters.py` (wip_limit en KANBAN_COLUMNS) |
+| Nuevos maestros (combos) | `domain/taskboard/masters.py`, `presentation/presenters/masters_presenter.py` (MASTER_KEYS), `presentation/modules/masters/view.py` |
+| Nuevos campos en Task | BoardService (`_new_task`, `update_task_*`), migración en `schema_versions.py` |
+| Persistencia / migración | `infrastructure/persistence/schema_versions.py`, `zodb_repository.py` |
+| Estilos visuales | `styles.qss`, `presentation/theme/constants.py` |
+| Reglas del proyecto | `.cursorrules` (WIP, simplicidad) |
 
 ---
 

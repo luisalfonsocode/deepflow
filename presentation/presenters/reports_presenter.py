@@ -11,7 +11,7 @@ from typing import Any
 
 from application.reports import ExportService
 from application.taskboard import BoardService
-from domain.taskboard import COLUMNS, col_key_to_display, display_to_column_key, parse_date_to_iso
+from domain.taskboard import parse_date_to_iso
 from infrastructure.export import ExcelActivityExporter
 
 
@@ -30,8 +30,8 @@ class ReportsPresenter:
         self._board.load()
         return ExportService(
             self._board.data,
-            list(COLUMNS),
-            col_key_to_display,
+            list(self._board.get_column_keys()),
+            self._board.col_key_to_display,
         )
 
     def load_activities(self) -> list[dict[str, Any]]:
@@ -63,6 +63,16 @@ class ReportsPresenter:
         """Nombre sugerido para exportación Excel."""
         return f"actividades_{datetime.now(TZ_APP).strftime('%Y%m%d_%H%M')}.xlsx"
 
+    def get_column_items(self) -> list[tuple[str, str]]:
+        """Retorna [(label, key), ...] del maestro kanban_columns, ordenado por order."""
+        self._board.load()
+        cols = self._board.get_kanban_columns()
+        return [(c.get("label", ""), c.get("key", "")) for c in sorted(cols, key=lambda x: x.get("order", 99))]
+
+    def display_to_column_key(self, display: str) -> str | None:
+        """Convierte label a column_key según maestro kanban_columns."""
+        return self._board.display_to_column_key(display)
+
     # --- Edición (delega en BoardService) ---
 
     def update_task_ticket(self, task_id: str, value: str) -> bool:
@@ -72,8 +82,8 @@ class ReportsPresenter:
         return self._board.update_task_name(task_id, value)
 
     def update_task_state(self, task_id: str, display_value: str) -> bool:
-        """Mueve la tarea a la columna indicada por display (ej. 'In Progress')."""
-        col = display_to_column_key(display_value)
+        """Mueve la tarea a la columna indicada por display (desde maestro kanban_columns)."""
+        col = self._board.display_to_column_key(display_value)
         if col is None:
             return False
         return self._board.move_task(task_id, col)

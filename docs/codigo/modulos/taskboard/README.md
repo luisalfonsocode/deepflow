@@ -17,9 +17,10 @@ Gestión del tablero Kanban, tareas y flujo WIP. Módulo principal de DeepFlow.
 | Funcionalidad | Estado | Descripción |
 |---------------|--------|-------------|
 | **Creación** | ✅ | Crear tarea en Backlog (modal, Ctrl+V, botón +) |
-| **Modificación de nombre** | ✅ | `update_task_name(task_id, new_name)` en BoardService |
+| **Modificación** | ✅ | `update_task_name`, `update_task_ticket`, `update_task_*` en BoardService |
 | **Eliminación** | ✅ | `delete_task(task_id)` en BoardService |
-| **Consulta** | ✅ | `data`, `get_task(task_id)`, `get_tasks_with_timestamps()`, exportar CSV |
+| **Consulta** | ✅ | `data`, `get_task`, `get_task_column`, `get_tasks_with_timestamps()`, exportar CSV |
+| **Maestros / Kanban** | ✅ | `get_kanban_columns`, `save_kanban_columns`, `col_key_to_display` (ver Maestros) |
 
 ---
 
@@ -46,5 +47,7 @@ presentation/modules/taskboard/   # TaskBoardView, TaskCard, ColumnWidget, dialo
 Ver **[API TaskBoard](API.md)** para documentación de métodos y cobertura de tests.
 
 ```bash
-pytest tests/test_board_service.py -v
+pytest tests/ -v
 ```
+
+Ver [Maestros](../masters/README.md) para configuración de columnas Kanban y límites WIP.

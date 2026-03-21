@@ -32,7 +32,6 @@ Estos archivos están en `.gitignore` (no se versionan). El directorio `db/` se 
 ## Documentación
 
 - **DIAGRAMA_BASE_DATOS.md**: diagrama del esquema (container deepflow, Task, Subtask, Transitions).
-- **Análisis de BD embebida**: ver [docs/analisis/base-datos-embebida.md](../docs/analisis/base-datos-embebida.md) para la justificación de ZODB frente a SQLite, TinyDB, etc.
 
 ## Migraciones
 

@@ -7,6 +7,7 @@ from domain.taskboard.utils import (
     format_date_display,
     format_duration_in_activity,
     format_task_duration,
+    normalize_key_from_label,
     parse_date_to_iso,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "format_date_display",
     "format_duration_in_activity",
     "format_task_duration",
+    "normalize_key_from_label",
     "parse_date_to_iso",
 ]

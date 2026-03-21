@@ -6,7 +6,6 @@ Orquesta lógica de tareas; la vista solo renderiza.
 from typing import Any
 
 from application.taskboard import BoardService
-from domain.taskboard import COLUMNS, col_key_to_display
 
 
 class TaskboardPresenter:
@@ -21,9 +20,9 @@ class TaskboardPresenter:
         return list(self._board.data.get(column_key, []))
 
     def get_all_columns_data(self) -> dict[str, list]:
-        """Todas las columnas con sus tareas."""
+        """Todas las columnas con sus tareas (desde maestro kanban_columns)."""
         self._board.load()
-        return {col: self.get_tasks_by_column(col) for col in COLUMNS}
+        return {col: self.get_tasks_by_column(col) for col in self._board.get_column_keys()}
 
     def create_task(self, name: str) -> dict[str, Any] | None:
         """Crea tarea en Backlog."""
@@ -46,5 +45,5 @@ class TaskboardPresenter:
         return self._board.is_overcapacity(column_key)
 
     def col_display(self, column_key: str) -> str:
-        """Nombre visible de columna."""
-        return col_key_to_display(column_key)
+        """Nombre visible de columna (desde maestro kanban_columns)."""
+        return self._board.col_key_to_display(column_key)

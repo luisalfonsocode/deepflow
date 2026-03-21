@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from PyQt6.QtCore import Qt, QMimeData
 from PyQt6.QtGui import QDrag
@@ -18,12 +18,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from domain.taskboard import col_key_to_display, format_task_duration
+from domain.taskboard import format_task_duration
+from domain.taskboard.utils import col_key_to_display
 from presentation.shared.dnd import DeepFlowDropTargetMixin, make_task_mime_data
 from presentation.theme import ObjectNames
 
 if TYPE_CHECKING:
     from presentation.ports.clipboard_provider import ClipboardProvider
+
+
+def _default_col_display(key: str) -> str:
+    """Fallback cuando no se pasa display_label (ej. tests)."""
+    return col_key_to_display(key)
 
 
 class _ColumnHeader(DeepFlowDropTargetMixin, QWidget):
@@ -32,11 +38,12 @@ class _ColumnHeader(DeepFlowDropTargetMixin, QWidget):
     def __init__(
         self,
         column_key: str,
-        on_move,
+        on_move: Callable[[str, str], None],
         show_create_button: bool = False,
-        on_show_dialog=None,
-        parent=None,
-    ):
+        on_show_dialog: Callable[[str], None] | None = None,
+        display_label: str | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.column_key = column_key
         self.on_move = on_move
@@ -46,7 +53,8 @@ class _ColumnHeader(DeepFlowDropTargetMixin, QWidget):
         header_layout = QHBoxLayout(self)
         header_layout.setContentsMargins(0, 0, 0, 4)
 
-        self.title_label = QLabel(col_key_to_display(column_key))
+        title = display_label if display_label is not None else _default_col_display(column_key)
+        self.title_label = QLabel(title)
         self.title_label.setObjectName("columnTitle")
         header_layout.addWidget(self.title_label, 1)
 
@@ -69,7 +77,12 @@ class _ColumnHeader(DeepFlowDropTargetMixin, QWidget):
 class _ColumnDropZone(DeepFlowDropTargetMixin, QFrame):
     """Zona de drop en espacio vacío de la columna."""
 
-    def __init__(self, column_key: str, on_move, parent=None):
+    def __init__(
+        self,
+        column_key: str,
+        on_move: Callable[[str, str], None],
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.column_key = column_key
         self.on_move = on_move
@@ -153,8 +166,8 @@ class TaskCard(DeepFlowDropTargetMixin, QFrame):
         task_id: str,
         name: str,
         column_key: str,
-        on_move,
-        on_click=None,
+        on_move: Callable[[str, str], None],
+        on_click: Callable[[str], None] | None = None,
         started_at: str | None = None,
         finished_at: str | None = None,
         ticket: str = "",
@@ -245,11 +258,12 @@ class ColumnWidget(DeepFlowDropTargetMixin, QWidget):
     def __init__(
         self,
         column_key: str,
-        on_move,
+        on_move: Callable[[str, str], None],
         show_create_button: bool = False,
-        on_show_dialog=None,
-        parent=None,
-    ):
+        on_show_dialog: Callable[[str], None] | None = None,
+        display_label: str | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.column_key = column_key
         self.on_move = on_move
@@ -261,9 +275,11 @@ class ColumnWidget(DeepFlowDropTargetMixin, QWidget):
         layout.setSpacing(2)
 
         header = _ColumnHeader(
-            column_key, on_move,
+            column_key,
+            on_move,
             show_create_button=show_create_button,
             on_show_dialog=on_show_dialog,
+            display_label=display_label,
         )
         self.title_label = header.title_label
         self.count_label = header.count_label

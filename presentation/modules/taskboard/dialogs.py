@@ -19,17 +19,7 @@ from PyQt6.QtWidgets import (
 from datetime import datetime
 
 from application.taskboard import BoardService
-from domain.taskboard import COLUMNS, col_key_to_display
 from domain.taskboard.constants import TZ_APP
-
-# Etiquetas en español para columnas (usadas en el modal)
-_COL_LABEL_ES = {
-    "backlog": "Backlog",
-    "todo": "To Do",
-    "in_progress": "En progreso",
-    "done": "Hecho",
-    "detenido": "Detenido",
-}
 from domain.taskboard.utils import (
     compute_time_in_columns,
     format_date_display,
@@ -191,7 +181,7 @@ class TaskDetailDialog(QDialog):
         state_label.setObjectName("taskQuickEditInfo")
         header_row.addWidget(state_label, 0)
         if self._create_mode:
-            state_static = QLabel(_COL_LABEL_ES.get(self._current_col, col_key_to_display(self._current_col)))
+            state_static = QLabel(self.board.col_key_to_display(self._current_col))
             state_static.setObjectName("taskQuickEditInfo")
             header_row.addWidget(state_static, 0)
             self.state_combo = None
@@ -200,9 +190,10 @@ class TaskDetailDialog(QDialog):
             self.state_combo.setObjectName("stateCombo")
             self.state_combo.installEventFilter(self)
             self.state_combo.view().installEventFilter(self)
-            for col in COLUMNS:
+            self.board.load()
+            for col in self.board.get_column_keys():
                 if self.board.can_add_to(col) or col == self._current_col:
-                    self.state_combo.addItem(col_key_to_display(col), col)
+                    self.state_combo.addItem(self.board.col_key_to_display(col), col)
             current_idx = self.state_combo.findData(self._current_col)
             if current_idx >= 0:
                 self.state_combo.setCurrentIndex(current_idx)
@@ -235,7 +226,7 @@ class TaskDetailDialog(QDialog):
             active_secs, detenido_secs = compute_time_in_columns(
                 task.get("id", ""), transitions, self._current_col
             )
-            col_label = _COL_LABEL_ES.get(self._current_col, col_key_to_display(self._current_col))
+            col_label = self.board.col_key_to_display(self._current_col)
 
             # Inicio en progreso: editable si la tarea tiene started_at
             started_row = QHBoxLayout()
@@ -541,7 +532,7 @@ class TaskDetailDialog(QDialog):
                 QMessageBox.warning(
                     self,
                     "No se puede crear",
-                    f"La columna {col_key_to_display(self._current_col)} está llena (límite WIP alcanzado)."
+                    f"La columna {self.board.col_key_to_display(self._current_col)} está llena (límite WIP alcanzado)."
                 )
                 return
             self.task_id = task["id"]
@@ -681,5 +672,5 @@ class TaskDetailDialog(QDialog):
             QMessageBox.warning(
                 self,
                 "No se puede mover",
-                f"La columna {col_key_to_display(target)} está llena (límite WIP alcanzado)."
+                f"La columna {self.board.col_key_to_display(target)} está llena (límite WIP alcanzado)."
             )

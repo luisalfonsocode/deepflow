@@ -8,7 +8,7 @@ La app usa ZODB como base de datos en `data/db/`. Si existe `deepflow_db.json` o
 
 **Estructura de datos:** Ver **[data/DIAGRAMA_BASE_DATOS.md](../../data/DIAGRAMA_BASE_DATOS.md)** para el diagrama completo.
 
-- **Columnas**: backlog, todo, in_progress, done, detenido
+- **Columnas**: Definidas por maestro `kanban_columns` (key, label, order, wip_limit). Por defecto: backlog, todo, in_progress, done, detenido
 - **Tareas**: `id`, `ticket`, `name`, `tribe_and_squad`, `requester`, `reporting_channel`, `entered_at`, `started_at`, `finished_at`, `subtasks`
 - **Transiciones**: cada creación o movimiento genera un registro (`task_id`, `task_name`, `from_column`, `to_column`, `timestamp`)
 

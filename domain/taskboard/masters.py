@@ -5,6 +5,9 @@ Estructura v4: origen, tribu_squad, solicitante, kanban_columns.
 
 from typing import Any
 
+# Key del maestro kanban en el container persistido
+KANBAN_COLUMNS_KEY = "kanban_columns"
+
 ORIGEN_OPTIONS: list[dict[str, str]] = [
     {"key": "teams", "label": "Teams"},
     {"key": "correo", "label": "Correo"},
@@ -46,3 +49,11 @@ def get_wip_limit(kanban_columns: list[dict[str, Any]], column_key: str) -> int 
                 return None
             return int(val)
     return 3
+
+
+def default_kanban_columns_dicts() -> list[dict[str, Any]]:
+    """Copia de KANBAN_COLUMNS para inicialización/migración. Una sola fuente de verdad."""
+    return [
+        {"key": kc["key"], "label": kc["label"], "order": kc["order"], "wip_limit": kc["wip_limit"]}
+        for kc in KANBAN_COLUMNS
+    ]

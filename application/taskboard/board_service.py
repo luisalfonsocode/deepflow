@@ -11,26 +11,39 @@ from datetime import datetime
 from domain.taskboard.constants import TZ_APP
 from typing import TYPE_CHECKING, Any
 
-from domain.taskboard.constants import COLUMNS
-from domain.taskboard.masters import KANBAN_COLUMNS, get_column_keys, get_wip_limit
+from domain.taskboard.masters import KANBAN_COLUMNS, KANBAN_COLUMNS_KEY, get_column_keys, get_wip_limit
+from domain.taskboard.utils import (
+    col_key_to_display as _domain_col_key_to_display,
+    display_to_column_key as _domain_display_to_column_key,
+    normalize_key_from_label,
+)
 
 if TYPE_CHECKING:
     from application.ports.board_repository import BoardRepository
-
-# Maestros solo en código (domain), no en BD
-_COLUMN_KEYS = get_column_keys(KANBAN_COLUMNS)
 
 
 def _columns(data: dict) -> dict[str, list]:
     """Acceso a columns; soporta estructura v4 y legacy."""
     if "columns" in data and isinstance(data["columns"], dict):
         return data["columns"]
-    return {col: data.get(col, []) for col in COLUMNS}
+    keys = _column_keys(data)
+    return {col: data.get(col, []) for col in keys}
 
 
-def _column_keys(_data: dict) -> tuple[str, ...]:
-    """Claves de columnas desde domain (código), no desde BD."""
-    return _COLUMN_KEYS
+def _column_keys(data: dict) -> tuple[str, ...]:
+    """Claves de columnas desde maestro kanban_columns en BD, fallback a domain."""
+    kc = data.get(KANBAN_COLUMNS_KEY)
+    if isinstance(kc, list) and kc:
+        return get_column_keys(kc)
+    return get_column_keys(KANBAN_COLUMNS)
+
+
+def _kanban_columns(data: dict) -> list[dict[str, Any]]:
+    """Maestro kanban_columns desde BD, fallback a domain."""
+    kc = data.get(KANBAN_COLUMNS_KEY)
+    if isinstance(kc, list) and kc:
+        return [dict(c) for c in kc if isinstance(c, dict) and c.get("key")]
+    return [dict(c) for c in KANBAN_COLUMNS]
 
 
 class BoardService:
@@ -39,6 +52,28 @@ class BoardService:
     def __init__(self, repository: "BoardRepository"):
         self._repo = repository
         self._data = self._repo.get_board_data()
+        self._display_cache: dict[str, str] | None = None  # key -> label
+        self._display_reverse_cache: dict[str, str] | None = None  # label -> key
+
+    def _invalidate_display_cache(self) -> None:
+        """Invalida cache de key/label (tras load o save_kanban_columns)."""
+        self._display_cache = None
+        self._display_reverse_cache = None
+
+    def _get_display_maps(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Retorna (key->label, label->key) desde kanban_columns. Cache O(1) lookups."""
+        if self._display_cache is None or self._display_reverse_cache is None:
+            key_to_label: dict[str, str] = {}
+            label_to_key: dict[str, str] = {}
+            for c in self._kanban_cols():
+                if isinstance(c, dict):
+                    k, lbl = c.get("key"), c.get("label")
+                    if k and lbl:
+                        key_to_label[str(k)] = str(lbl)
+                        label_to_key[str(lbl)] = str(k)
+            self._display_cache = key_to_label
+            self._display_reverse_cache = label_to_key
+        return self._display_cache, self._display_reverse_cache
 
     @property
     def data(self) -> dict[str, Any]:
@@ -55,9 +90,13 @@ class BoardService:
     def _col_keys(self) -> tuple[str, ...]:
         return _column_keys(self._data)
 
+    def _kanban_cols(self) -> list[dict[str, Any]]:
+        return _kanban_columns(self._data)
+
     def load(self) -> None:
         """Recarga desde el repositorio."""
         self._data = self._repo.get_board_data()
+        self._invalidate_display_cache()
 
     def persist(self) -> bool:
         """Persiste mediante el repositorio."""
@@ -78,11 +117,60 @@ class BoardService:
     def save_master_list(self, master_key: str, items: list[dict[str, str]]) -> bool:
         """Persiste la lista de un maestro."""
         valid = [
-            {"key": (x.get("key") or str(x.get("label", "")).lower().replace(" ", "_")), "label": str(x.get("label", ""))}
+            {
+                "key": x.get("key") or normalize_key_from_label(str(x.get("label", ""))),
+                "label": str(x.get("label", "")),
+            }
             for x in items
             if isinstance(x, dict) and x.get("label")
         ]
         self._data[master_key] = valid
+        return self.persist()
+
+    def get_column_keys(self) -> tuple[str, ...]:
+        """Claves de columnas del maestro kanban_columns (ordenadas)."""
+        return self._col_keys()
+
+    def col_key_to_display(self, column_key: str) -> str:
+        """Label visible de columna según maestro kanban_columns. Fallback a domain."""
+        key_to_label, _ = self._get_display_maps()
+        if column_key in key_to_label:
+            return key_to_label[column_key]
+        return _domain_col_key_to_display(column_key)
+
+    def display_to_column_key(self, display: str) -> str | None:
+        """Convierte label visible a column_key según maestro. Fallback a domain."""
+        val = (display or "").strip()
+        _, label_to_key = self._get_display_maps()
+        if val in label_to_key:
+            return label_to_key[val]
+        return _domain_display_to_column_key(val)
+
+    def get_kanban_columns(self) -> list[dict[str, Any]]:
+        """Obtiene el maestro kanban_columns (key, label, order, wip_limit)."""
+        return self._kanban_cols()
+
+    def save_kanban_columns(self, columns: list[dict[str, Any]]) -> bool:
+        """Persiste el maestro kanban_columns. Retorna False si no hay columnas válidas."""
+        valid = []
+        for i, c in enumerate(columns):
+            if not isinstance(c, dict) or not c.get("key"):
+                continue
+            wip_val = c.get("wip_limit")
+            try:
+                wip_limit = None if wip_val is None else max(0, int(wip_val))
+            except (TypeError, ValueError):
+                wip_limit = None
+            valid.append({
+                "key": str(c.get("key", "")),
+                "label": str(c.get("label", c.get("key", ""))),
+                "order": int(c.get("order", i + 1)),
+                "wip_limit": wip_limit,
+            })
+        if not valid:
+            return False
+        self._data[KANBAN_COLUMNS_KEY] = valid
+        self._invalidate_display_cache()
         return self.persist()
 
     # --- Creación ---
@@ -138,6 +226,7 @@ class BoardService:
 
     # --- Modificación ---
     def update_task_name(self, task_id: str, new_name: str) -> bool:
+        """Actualiza el nombre de la tarea. Retorna False si no existe."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -146,6 +235,7 @@ class BoardService:
         return True
 
     def update_task_ticket(self, task_id: str, ticket: str) -> bool:
+        """Actualiza el ticket (código externo) de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -154,6 +244,7 @@ class BoardService:
         return True
 
     def update_task_tribe_and_squad(self, task_id: str, value: str) -> bool:
+        """Actualiza tribu/squad de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -165,6 +256,7 @@ class BoardService:
         return self.update_task_solicitante(task_id, value)
 
     def update_task_solicitante(self, task_id: str, value: str) -> bool:
+        """Actualiza solicitante/requester de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -175,6 +267,7 @@ class BoardService:
         return True
 
     def update_task_reporting_channel(self, task_id: str, value: str) -> bool:
+        """Actualiza canal de reporte/origen de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -185,6 +278,7 @@ class BoardService:
         return True
 
     def update_task_prioridad(self, task_id: str, value: bool) -> bool:
+        """Actualiza flag de prioridad alta de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -193,6 +287,7 @@ class BoardService:
         return True
 
     def update_task_categoria(self, task_id: str, value: str) -> bool:
+        """Actualiza categoría de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -201,6 +296,7 @@ class BoardService:
         return True
 
     def update_task_detalle(self, task_id: str, value: str) -> bool:
+        """Actualiza detalle/descripción de la tarea."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -209,6 +305,7 @@ class BoardService:
         return True
 
     def update_task_due_date(self, task_id: str, value: str) -> bool:
+        """Actualiza fecha compromiso de la tarea (ISO)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -217,6 +314,7 @@ class BoardService:
         return True
 
     def update_task_created_at(self, task_id: str, iso_value: str) -> bool:
+        """Actualiza fecha de creación de la tarea (ISO)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -225,6 +323,7 @@ class BoardService:
         return True
 
     def update_task_entered_at(self, task_id: str, iso_value: str) -> bool:
+        """Actualiza fecha de entrada en columna actual (ISO)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -233,6 +332,7 @@ class BoardService:
         return True
 
     def update_task_started_at(self, task_id: str, iso_value: str) -> bool:
+        """Actualiza fecha de inicio en progreso (ISO)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -241,6 +341,7 @@ class BoardService:
         return True
 
     def update_task_finished_at(self, task_id: str, iso_value: str) -> bool:
+        """Actualiza fecha de finalización (ISO)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -249,6 +350,7 @@ class BoardService:
         return True
 
     def update_task_subtasks(self, task_id: str, subtasks: list[dict[str, Any]]) -> bool:
+        """Actualiza lista de subtareas (normaliza name, estado, order)."""
         task = self._find_task(task_id)
         if not task:
             return False
@@ -268,6 +370,7 @@ class BoardService:
         return True
 
     def move_task(self, task_id: str, target_column: str) -> bool:
+        """Mueve tarea a otra columna. Retorna False si destino está lleno o tarea no existe."""
         if not self._can_add_to(target_column):
             return False
         result = self._pop_task(task_id)
@@ -329,7 +432,7 @@ class BoardService:
         return result
 
     def can_add_to(self, column_key: str) -> bool:
-        limit = get_wip_limit(KANBAN_COLUMNS, column_key)
+        limit = get_wip_limit(self._kanban_cols(), column_key)
         if limit is None:
             return True
         return len(self._cols().get(column_key, [])) < limit
@@ -338,7 +441,7 @@ class BoardService:
         return len(self._cols().get(column_key, []))
 
     def is_overcapacity(self, column_key: str) -> bool:
-        limit = get_wip_limit(KANBAN_COLUMNS, column_key)
+        limit = get_wip_limit(self._kanban_cols(), column_key)
         if limit is None:
             return False
         return len(self._cols().get(column_key, [])) > limit

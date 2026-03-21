@@ -83,7 +83,8 @@ WIP_LIMIT_PER_COLUMN = 3
 
 ```python
 ORIGEN_OPTIONS = [{"key": "teams", "label": "Teams"}, {"key": "correo", "label": "Correo"}]
-KANBAN_COLUMNS = [{"key": "backlog", "label": "Backlog", "order": 1, "wip_limit": 3}, ...]
+KANBAN_COLUMNS = [{"key": "backlog", "label": "Backlog", "order": 1, "wip_limit": None}, ...]
+# wip_limit: None = sin límite. Backlog/Done sin límite; To Do/In Progress: 3; Detenido: 5
 
 def get_column_keys(kanban_columns): ...
 def get_wip_limit(kanban_columns, column_key): ...

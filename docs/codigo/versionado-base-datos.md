@@ -20,8 +20,21 @@ Cuando el schema cambia (nuevos campos, tablas, o cambios de estructura), se esc
 
 | Archivo | Responsabilidad |
 |---------|-----------------|
-| `infrastructure/persistence/schema_versions.py` | Define `CURRENT_SCHEMA_VERSION` y `migrate_to_latest()` |
+| `infrastructure/persistence/schema_versions.py` | Define `CURRENT_SCHEMA_VERSION` (8) y `migrate_to_latest()` |
 | `infrastructure/persistence/zodb_repository.py` | Lee `schema_version` del root y aplica migraciones |
+
+### Versiones de schema actuales
+
+| Versión | Cambio |
+|---------|--------|
+| 1 | Columnas + transitions |
+| 2 | Campo `ticket` en tareas |
+| 3 | tribe_and_squad, requester, reporting_channel |
+| 4 | Container deepflow, maestros, columns dict |
+| 5 | Maestros persistentes (tribu_squad, solicitante, canal_reporte) |
+| 6 | Maestro categoria |
+| 7 | Backfill finished_at en tareas en Done |
+| 8 | Maestro kanban_columns (wip_limit configurable por columna) |
 
 ---
 
@@ -51,15 +64,13 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
 
 def _migrate_v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
     """Ejemplo: añadir campo 'tags' a todas las tareas."""
-    from domain.taskboard.constants import COLUMNS
+    from domain.taskboard.masters import KANBAN_COLUMNS
 
-    for col in COLUMNS:
-        for task in data.get(col, []):
+    cols = data.get("columns") or {kc["key"]: data.get(kc["key"], []) for kc in KANBAN_COLUMNS}
+    for col, tasks in cols.items():
+        for task in tasks:
             if isinstance(task, dict) and "tags" not in task:
                 task["tags"] = []
-    if "transitions" in data:
-        # Las transiciones no cambian en este ejemplo
-        pass
     return data
 ```
 
@@ -110,10 +121,11 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
 
 def _migrate_v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
     """Añade priority=0 a tareas que no lo tienen."""
-    from domain.taskboard.constants import COLUMNS
+    from domain.taskboard.masters import KANBAN_COLUMNS
 
-    for col in COLUMNS:
-        for task in data.get(col, []):
+    cols = data.get("columns") or {kc["key"]: data.get(kc["key"], []) for kc in KANBAN_COLUMNS}
+    for col, tasks in cols.items():
+        for task in tasks:
             if isinstance(task, dict):
                 task.setdefault("priority", 0)
     return data

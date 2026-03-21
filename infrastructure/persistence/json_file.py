@@ -8,18 +8,12 @@ from pathlib import Path
 LOG = logging.getLogger(__name__)
 from typing import Any
 
-from domain.taskboard.constants import COLUMNS
+from domain.taskboard.masters import KANBAN_COLUMNS
 from infrastructure.persistence.config import DB_PATH
 
 
 def _get_default_data() -> dict[str, Any]:
-    return {
-        "backlog": [],
-        "todo": [],
-        "in_progress": [],
-        "done": [],
-        "detenido": [],
-    }
+    return {kc["key"]: [] for kc in KANBAN_COLUMNS}
 
 
 def _ensure_dir(path: Path) -> None:
@@ -34,8 +28,9 @@ def load_board(path: Path | str | None = None) -> dict[str, Any]:
     try:
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
-        for col in COLUMNS:
-            if col not in data or not isinstance(data[col], list):
+        for kc in KANBAN_COLUMNS:
+            col = kc["key"]
+            if col not in data or not isinstance(data.get(col), list):
                 data[col] = []
         LOG.debug("JSON cargado: %s", file_path)
         return data

@@ -1,6 +1,6 @@
 """
 Presentador del módulo Maestros.
-CRUD de maestros: tribu_squad, solicitante, canal_reporte.
+CRUD de maestros: tribu_squad, solicitante, canal_reporte, categoria, kanban_columns.
 """
 
 from typing import Any
@@ -30,6 +30,15 @@ class MastersPresenter:
     def save_master(self, master_key: str, items: list[dict[str, str]]) -> bool:
         """Persiste la lista del maestro."""
         return self._board.save_master_list(master_key, items)
+
+    def load_kanban_columns(self) -> list[dict[str, Any]]:
+        """Recarga el board y retorna kanban_columns (key, label, order, wip_limit)."""
+        self._board.load()
+        return self._board.get_kanban_columns()
+
+    def save_kanban_columns(self, columns: list[dict[str, Any]]) -> bool:
+        """Persiste el maestro kanban_columns."""
+        return self._board.save_kanban_columns(columns)
 
     def get_master_label(self, master_key: str) -> str:
         """Etiqueta visible del maestro."""

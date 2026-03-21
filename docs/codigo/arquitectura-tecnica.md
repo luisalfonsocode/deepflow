@@ -73,8 +73,9 @@
 
 ## Validaciones WIP
 
-- Cada columna tiene límite `WIP_LIMIT_PER_COLUMN = 3`
-- `can_add_to()` comprueba `len(column) < 3`
+- Cada columna tiene límite configurable en el maestro `kanban_columns` (`wip_limit`; `None` = sin límite)
+- Por defecto: Backlog/Done sin límite; To Do/In Progress: 3; Detenido: 5
+- `can_add_to()` usa `get_wip_limit(kanban_columns, column_key)` desde domain
 - Los botones ◀ ▶ se deshabilitan si la columna destino está llena
 - El botón + se deshabilita cuando Backlog está lleno
 

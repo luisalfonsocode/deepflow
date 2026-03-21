@@ -65,11 +65,13 @@ pytest tests/ -v
 
 | Columna       | Función                    | Límite WIP |
 |---------------|----------------------------|------------|
-| **Backlog**   | Entrada inicial de tareas  | 3          |
+| **Backlog**   | Entrada inicial (+ / Ctrl+V)| Sin límite |
 | **To Do**     | Selección para la sesión   | 3          |
 | **In Progress** | Trabajo activo           | 3          |
-| **Done**      | Tareas finalizadas         | 3          |
-| **Detenido**  | Tareas bloqueadas          | 3          |
+| **Done**      | Tareas finalizadas         | Sin límite |
+| **Detenido**  | Tareas bloqueadas          | 5          |
+
+> Los límites son configurables en **Maestros → Columnas Kanban**. Vacío = sin límite.
 
 ### Creación de tareas
 
@@ -87,7 +89,7 @@ pytest tests/ -v
 
 ### Alerta de sobrecapacidad
 
-Cuando una columna supera el límite de 3 tareas:
+Cuando una columna supera su límite WIP configurado:
 
 - La cabecera de la columna se marca en rojo
 - La barra de título muestra: **WARNING: OVERCAPACITY**
@@ -248,7 +250,7 @@ Organizada por módulos. Ver **[docs/README.md](docs/README.md)** para el índic
 | Sección | Enlaces |
 |---------|---------|
 | **Estructura** | [Mapa del proyecto](docs/codigo/estructura.md) – Distribución de archivos y módulos |
-| **Módulos** | [Widget](docs/codigo/modulos/widget/README.md) · [TaskBoard](docs/codigo/modulos/taskboard/README.md) · [Reports](docs/codigo/modulos/reports/README.md) · [Alerts](docs/codigo/modulos/alerts/README.md) |
+| **Módulos** | [Widget](docs/codigo/modulos/widget/README.md) · [TaskBoard](docs/codigo/modulos/taskboard/README.md) · [Reports](docs/codigo/modulos/reports/README.md) · [Maestros](docs/codigo/modulos/masters/README.md) · [Alerts](docs/codigo/modulos/alerts/README.md) |
 | **API** | [TaskBoard API](docs/codigo/modulos/taskboard/API.md) |
 | **Arquitectura** | [Clean Architecture](docs/codigo/arquitectura-clean.md) · [Arquitectura técnica](docs/codigo/arquitectura-tecnica.md) · [Desarrollo](docs/codigo/desarrollo.md) · [Infraestructura](docs/codigo/infraestructura.md) · [Versionado BD](docs/codigo/versionado-base-datos.md) |
 | **Despliegue** | [Build y actualizaciones](docs/despliegue-updates.md) – Paquete de update sin tocar `data/` |

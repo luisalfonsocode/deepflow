@@ -7,6 +7,7 @@ Versionado de schema para ZODB.
   - schema_version 5: maestros persistentes (tribu_squad, solicitante, canal_reporte)
   - schema_version 6: maestro categoria
   - schema_version 7: backfill finished_at en tareas en Done
+  - schema_version 8: maestro kanban_columns (columnas con wip_limit configurable)
 """
 
 import logging
@@ -14,10 +15,11 @@ from typing import Any
 
 LOG = logging.getLogger(__name__)
 
-from domain.taskboard.constants import COLUMNS
 from domain.taskboard.masters import (
     CATEGORIA_OPTIONS,
+    default_kanban_columns_dicts,
     KANBAN_COLUMNS,
+    KANBAN_COLUMNS_KEY,
     ORIGEN_OPTIONS,
     SOLICITANTE_OPTIONS,
     TRIBU_SQUAD_OPTIONS,
@@ -43,6 +45,8 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
         result = _migrate_v5_to_v6(result)
     if from_version < 7:
         result = _migrate_v6_to_v7(result)
+    if from_version < 8:
+        result = _migrate_v7_to_v8(result)
     LOG.debug("Migración de schema completada")
     return result
 
@@ -75,7 +79,11 @@ def _migrate_v2_to_v3(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _flat_cols(data: dict[str, Any]) -> dict[str, list]:
-    return {col: data.get(col, []) for col in COLUMNS if isinstance(data.get(col), list)}
+    return {
+        kc["key"]: data.get(kc["key"], [])
+        for kc in KANBAN_COLUMNS
+        if isinstance(data.get(kc["key"]), list)
+    }
 
 
 def _migrate_v3_to_v4(data: dict[str, Any]) -> dict[str, Any]:
@@ -84,7 +92,8 @@ def _migrate_v3_to_v4(data: dict[str, Any]) -> dict[str, Any]:
         cols = dict(data["columns"])
     else:
         cols = _flat_cols(data)
-        for col in COLUMNS:
+        for kc in KANBAN_COLUMNS:
+            col = kc["key"]
             if col not in cols:
                 cols[col] = []
 
@@ -167,4 +176,11 @@ def _migrate_v6_to_v7(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-CURRENT_SCHEMA_VERSION = 7
+def _migrate_v7_to_v8(data: dict[str, Any]) -> dict[str, Any]:
+    """Migra a v8. Añade maestro kanban_columns con wip_limit configurable."""
+    if KANBAN_COLUMNS_KEY not in data or not isinstance(data.get(KANBAN_COLUMNS_KEY), list):
+        data[KANBAN_COLUMNS_KEY] = default_kanban_columns_dicts()
+    return data
+
+
+CURRENT_SCHEMA_VERSION = 8
