@@ -1,23 +1,55 @@
-# DeepFlow – Índice de Documentación
+# DeepFlow – Documentación
 
-Referencia técnica del proyecto.
+Índice central de la documentación. Todo está en `docs/`.
 
 ---
 
-## 1. Documentación de código
+## Estructura
 
-Referencia técnica: estructura, arquitectura, guías de desarrollo y APIs de módulos.
+```
+docs/
+├── README.md                    ← Estás aquí
+├── instalacion.md               Usuarios: instalar y actualizar (Windows)
+├── tutorial-github-actions.md   Mantenedores: pipeline, ramas, artefactos
+├── despliegue-updates.md        Desarrolladores: compilar desde fuente
+├── analisis-reporte-tiempo.md   Análisis: viabilidad reporte de tiempo
+├── analisis-reporte-tiempo-categorias.md
+├── funcionalidades-habilitables.md
+└── codigo/                      Referencia técnica del código
+    ├── estructura.md
+    ├── arquitectura-clean.md
+    ├── arquitectura-tecnica.md
+    ├── desarrollo.md
+    ├── infraestructura.md
+    ├── versionado-base-datos.md
+    └── modulos/
+```
 
-### Estructura y arquitectura
+---
+
+## Inicio rápido
+
+| Necesito… | Documento |
+|-----------|-----------|
+| **Instalar DeepFlow** (ejecutable Windows) | [Guía de instalación](instalacion.md) |
+| **Actualizar sin perder datos** | [Guía de instalación → Actualizar](instalacion.md#actualizar-conservar-tus-datos) |
+| **Configurar el pipeline** (GitHub Actions) | [Tutorial GitHub Actions](tutorial-github-actions.md) |
+| **Compilar desde código fuente** | [Build y despliegue](despliegue-updates.md) |
+
+---
+
+## Código
+
+### Arquitectura y estructura
 
 | Documento | Descripción |
-|----------|-------------|
-| [estructura](codigo/estructura.md) | Mapa completo de archivos y directorios |
-| [arquitectura-clean](codigo/arquitectura-clean.md) | Guía Clean Architecture (domain, application, infrastructure, presentation) |
-| [arquitectura-tecnica](codigo/arquitectura-tecnica.md) | Flujo de datos, puertos, adaptadores |
-| [desarrollo](codigo/desarrollo.md) | Principios SOLID, cómo añadir columnas, campos, exportadores |
-| [infraestructura](codigo/infraestructura.md) | Persistencia ZODB, estilos QSS |
-| [versionado-base-datos](codigo/versionado-base-datos.md) | Migraciones de schema |
+|-----------|-------------|
+| [Estructura](codigo/estructura.md) | Mapa de archivos y directorios |
+| [Arquitectura Clean](codigo/arquitectura-clean.md) | Capas: domain, application, infrastructure, presentation |
+| [Arquitectura técnica](codigo/arquitectura-tecnica.md) | Flujo de datos, puertos, adaptadores |
+| [Desarrollo](codigo/desarrollo.md) | SOLID, añadir columnas/campos/exportadores |
+| [Infraestructura](codigo/infraestructura.md) | Persistencia ZODB, estilos QSS |
+| [Versionado BD](codigo/versionado-base-datos.md) | Migraciones de schema |
 
 ### Módulos
 
@@ -25,20 +57,33 @@ Referencia técnica: estructura, arquitectura, guías de desarrollo y APIs de m�
 |--------|-------------|
 | [Widget](codigo/modulos/widget/README.md) | MainShell, HeaderBar, InProgressCompact |
 | [TaskBoard](codigo/modulos/taskboard/README.md) | Kanban, tareas, WIP |
-| [TaskBoard API](codigo/modulos/taskboard/API.md) | Métodos de BoardService, tests |
+| [TaskBoard API](codigo/modulos/taskboard/API.md) | Métodos de BoardService |
 | [Reports](codigo/modulos/reports/README.md) | Reportes, exportación Excel |
-| [Maestros](codigo/modulos/masters/README.md) | Tribu, Solicitante, Canal, Categoría, Columnas Kanban |
+| [Maestros](codigo/modulos/masters/README.md) | Tribu, Canal, Categoría, Columnas Kanban |
 | [Alerts](codigo/modulos/alerts/README.md) | Alertas (en desarrollo) |
-
-### Análisis y funcionalidades
-
-| Documento | Descripción |
-|----------|-------------|
-| [ANÁLISIS REPORTE DE TIEMPO](ANALISIS_REPORTE_TIEMPO.md) | Viabilidad de reporte semanal/mensual de dónde va el tiempo |
-| [FUNCIONALIDADES_HABILITABLES](FUNCIONALIDADES_HABILITABLES.md) | Módulos deshabilitados, placeholders y funcionalidades ampliables |
 
 ---
 
-## 2. Datos (fuera de docs/)
+## CI/CD y despliegue
+
+| Documento | Audiencia | Descripción |
+|-----------|-----------|-------------|
+| [Tutorial GitHub Actions](tutorial-github-actions.md) | Mantenedores | Protección de ramas, workflow, artefactos |
+| [Instalación (Windows)](instalacion.md) | Usuarios finales | Instalar y actualizar desde artefactos |
+| [Build y despliegue](despliegue-updates.md) | Desarrolladores | Compilar desde fuente, schema BD |
+
+---
+
+## Análisis y decisiones
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Reporte de tiempo](analisis-reporte-tiempo.md) | Viabilidad de reporte semanal/mensual |
+| [Reporte de tiempo (categorías)](analisis-reporte-tiempo-categorias.md) | Por qué aparecen solo N categorías |
+| [Funcionalidades habilitables](funcionalidades-habilitables.md) | Módulos deshabilitados y placeholders |
+
+---
+
+## Datos
 
 - **[data/DIAGRAMA_BASE_DATOS.md](../data/DIAGRAMA_BASE_DATOS.md)** – Esquema y estructura de la base de datos

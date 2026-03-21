@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt Pillow pyinstaller
+
+      - name: Generate icons
+        run: python script/generate_icons.py
+
+      - name: Build
+        run: python script/build_dist.py
+
+      - name: Build update package
+        run: python script/build_update_package.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepFlow-Windows
+          path: dist/
+
+      - name: Upload update package
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepFlow-update
+          path: dist/DeepFlow-update.zip

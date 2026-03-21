@@ -26,6 +26,13 @@ DIST_APP_NAME_DEBUG = "DeepFlow-debug"
 ADD_DATA_SEP = ";" if sys.platform == "win32" else ":"
 
 
+def _app_folder(app_name: str) -> Path:
+    """Ruta de la carpeta/paquete de salida. En Mac es .app, en Windows/Linux carpeta."""
+    if sys.platform == "darwin":
+        return DIST_DIR / f"{app_name}.app"
+    return DIST_DIR / app_name
+
+
 def ensure_pyinstaller() -> None:
     """Instala PyInstaller si no está presente."""
     try:
@@ -53,24 +60,22 @@ def build_executable(debug: bool = False) -> str:
     if not config_src.exists():
         sys.exit(f"Error: no existe {config_src}")
 
-    # Icono: Windows usa .ico, macOS usa .icns
+    # Iconos: incluir ambos formatos para paridad Mac/Windows (runtime elige el adecuado)
     assets_dir = PROJECT_ROOT / "assets"
-    icon_file = None
-    if sys.platform == "win32":
-        icon_file = assets_dir / "icon.ico"
-    else:
-        icon_file = assets_dir / "icon.icns"
-    if not icon_file.exists():
-        icon_file = assets_dir / "icon.png"
-    if not icon_file.exists():
-        icon_file = None
+    icon_files = []
+    for name in ("icon.ico", "icon.icns", "icon.png"):
+        p = assets_dir / name
+        if p.exists():
+            icon_files.append(p)
+    icon_for_exe = assets_dir / "icon.ico" if sys.platform == "win32" else assets_dir / "icon.icns"
+    if not icon_for_exe.exists():
+        icon_for_exe = assets_dir / "icon.png" if (assets_dir / "icon.png").exists() else None
 
     add_data = [
         f"--add-data={styles_src}{ADD_DATA_SEP}.",
         f"--add-data={config_src}{ADD_DATA_SEP}config",
     ]
-    # Incluir icono para setWindowIcon en runtime (ventana + barra de tareas)
-    if icon_file and icon_file.exists():
+    for icon_file in icon_files:
         add_data.append(f"--add-data={icon_file}{ADD_DATA_SEP}assets")
 
     cmd = [
@@ -90,9 +95,11 @@ def build_executable(debug: bool = False) -> str:
         *add_data,
         str(PROJECT_ROOT / "main.py"),
     ]
-    if icon_file and icon_file.exists():
-        cmd.extend(["--icon", str(icon_file)])
-        print(f"Icono: {icon_file.name}")
+    if icon_for_exe and icon_for_exe.exists():
+        cmd.extend(["--icon", str(icon_for_exe)])
+        print(f"Icono exe: {icon_for_exe.name}")
+    if icon_files:
+        print(f"Iconos empaquetados: {[p.name for p in icon_files]}")
 
     mode = "debug (con consola)" if debug else "producción"
     print(f"Ejecutando PyInstaller... [{mode}]")
@@ -102,19 +109,28 @@ def build_executable(debug: bool = False) -> str:
 
 
 def copy_portable_files(app_name: str) -> None:
-    """Copia styles.qss al nivel del exe para que PROJECT_ROOT lo encuentre."""
-    app_folder = DIST_DIR / app_name
+    """Copia styles.qss donde la app lo busque (PROJECT_ROOT o Contents/MacOS en .app)."""
+    app_folder = _app_folder(app_name)
     styles_src = PROJECT_ROOT / "styles.qss"
-    styles_dst = app_folder / "styles.qss"
+    if sys.platform == "darwin":
+        styles_dst = app_folder / "Contents" / "MacOS" / "styles.qss"
+    else:
+        styles_dst = app_folder / "styles.qss"
     if styles_src.exists():
+        styles_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(styles_src, styles_dst)
-        print(f"Copiado styles.qss a {app_folder}")
+        print(f"Copiado styles.qss a {styles_dst.parent}")
 
 
 def copy_production_config(app_name: str) -> None:
     """Copia deepflow.yaml de producción a dist si no existe."""
-    app_folder = DIST_DIR / app_name
-    config_yaml = app_folder / "config" / "yaml" / "deepflow.yaml"
+    app_folder = _app_folder(app_name)
+    if sys.platform == "darwin":
+        config_yaml = app_folder / "Contents" / "Resources" / "config" / "yaml" / "deepflow.yaml"
+    else:
+        config_yaml = app_folder / "_internal" / "config" / "yaml" / "deepflow.yaml"
+        if not config_yaml.parent.exists():
+            config_yaml = app_folder / "config" / "yaml" / "deepflow.yaml"
     if not config_yaml.exists():
         example = PROJECT_ROOT / "config" / "yaml" / "deepflow.yaml.example"
         if example.exists():
@@ -134,7 +150,7 @@ def copy_production_config(app_name: str) -> None:
 
 def create_dist_readme(app_name: str) -> None:
     """Crea README en dist explicando ubicación de la BDD."""
-    app_folder = DIST_DIR / app_name
+    app_folder = _app_folder(app_name)
     readme = app_folder / "README.txt"
     readme.write_text(
         "DeepFlow - Despliegue\n"
@@ -161,8 +177,11 @@ def create_dist_readme(app_name: str) -> None:
 
 def ensure_data_folder(app_name: str) -> None:
     """Crea carpeta data vacía en dist para que el usuario sepa dónde va la BDD."""
-    app_folder = DIST_DIR / app_name
-    data_dir = app_folder / "data"
+    app_folder = _app_folder(app_name)
+    if sys.platform == "darwin":
+        data_dir = app_folder / "Contents" / "MacOS" / "data"  # junto al exe
+    else:
+        data_dir = app_folder / "data"
     if not data_dir.exists():
         data_dir.mkdir(parents=True)
         (data_dir / ".gitkeep").write_text("")
@@ -186,14 +205,14 @@ def main() -> None:
         print("\n--- Paquete de actualización ---")
         subprocess.check_call([sys.executable, str(PROJECT_ROOT / "script" / "build_update_package.py")])
 
-    app_folder = DIST_DIR / app_name
+    app_folder = _app_folder(app_name)
     print(f"\nListo. Salida en: {DIST_DIR}")
     if args.debug:
         exe_name = "DeepFlow-debug" + (".exe" if sys.platform == "win32" else "")
         print(f"  Ejecutable debug: {app_folder / exe_name}")
         print("  (Ejecutar desde terminal para ver logs y errores)")
     elif sys.platform == "darwin":
-        print(f"  Ejecutar: open {app_folder}.app")
+        print(f"  Ejecutar: open {app_folder}")
     else:
         print(f"  Ejecutable: {app_folder / app_name}{'.exe' if sys.platform == 'win32' else ''}")
 

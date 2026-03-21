@@ -2,6 +2,8 @@
 
 Documento de referencia: funcionalidades que existen en el código pero están deshabilitadas, o que tienen base lista para habilitarse con poco esfuerzo.
 
+> **Índice:** [docs/README.md](../README.md)
+
 ---
 
 ## 1. Módulos deshabilitados
@@ -22,7 +24,7 @@ Documento de referencia: funcionalidades que existen en el código pero están d
 
 ### 2.1 Módulo Alerts (implementación completa)
 
-**Documentado en** `docs/codigo/modulos/alerts/README.md` y `data/DIAGRAMA_BASE_DATOS.md` (sección 6.4).
+**Documentado en** [codigo/modulos/alerts/README.md](codigo/modulos/alerts/README.md) y [data/DIAGRAMA_BASE_DATOS.md](../data/DIAGRAMA_BASE_DATOS.md) (sección 6.4).
 
 | Idea | Descripción | Base existente |
 |------|-------------|----------------|

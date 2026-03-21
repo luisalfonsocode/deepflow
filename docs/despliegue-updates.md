@@ -1,43 +1,36 @@
-# Despliegue y actualizaciones
+# Build y despliegue
 
-## Ver versión del schema de la BD
+Guía para **desarrolladores** que compilan DeepFlow desde el código fuente. Para instalar o actualizar el ejecutable descargando artefactos, ver [Guía de instalación](instalacion.md).
 
-Para saber qué versión tiene tu base de datos (útil antes de actualizar):
+---
 
-```bash
-python script/check_schema_version.py
-```
+## 1. Compilar el ejecutable
 
-O con ruta explícita a la carpeta `data/db`:
+### Requisitos
 
-```bash
-python script/check_schema_version.py /ruta/a/DeepFlow/data/db
-```
+- Python 3.10+
+- `pip install -r requirements.txt Pillow pyinstaller`
 
-Si está en v1, v2, etc., al abrir la app nueva se migrará automáticamente a v6.
-
-## Estrategia de datos
-
-La base de datos (ZODB) vive en `data/db/deepflow_db.fs`, relativo al ejecutable. **Nunca** se incluye en paquetes de actualización.
-
-| Qué | Ubicación |
-|-----|-----------|
-| **Código/recursos** | `DeepFlow.exe`, `_internal/`, `config/`, `styles.qss` |
-| **Datos de usuario** | `data/db/deepflow_db.fs` (no versionar, no incluir en updates) |
-| **Config opcional** | `config/yaml/deepflow.yaml` (el usuario puede personalizar) |
-
-## Instalación inicial
+### Comandos
 
 ```bash
+python script/generate_icons.py   # Genera iconos (opcional si ya existen)
 python script/build_dist.py
 ```
 
-- **macOS**: Copiar `dist/DeepFlow.app`
-- **Windows**: Copiar toda la carpeta `dist/DeepFlow`
+### Salida
 
-## Actualizaciones
+| Plataforma | Salida |
+|------------|--------|
+| **Windows** | `dist/DeepFlow/` con `DeepFlow.exe` |
+| **macOS** | `dist/DeepFlow.app` |
+| **Linux** | `dist/DeepFlow/` con binario |
 
-### 1. Generar paquete de actualización
+---
+
+## 2. Paquete de actualización
+
+Para distribuir actualizaciones sin incluir los datos del usuario:
 
 ```bash
 python script/build_dist.py --update
@@ -53,27 +46,46 @@ Se crea `dist/DeepFlow-update.zip` con todo **excepto**:
 - `data/` (base de datos)
 - `config/yaml/deepflow.yaml` (configuración del usuario)
 
-### 2. Aplicar la actualización
+**Aplicar la actualización:** Ver [Guía de instalación → Actualizar](instalacion.md#actualizar-conservar-tus-datos).
 
-1. **Cierra DeepFlow** si está abierto.
-2. Descomprime `DeepFlow-update.zip` **sobre** la carpeta de instalación.
-3. La carpeta `data/` no se toca; tus tareas se conservan.
+---
 
-En Windows, si DeepFlow está en `C:\Apps\DeepFlow\`:
-- Abre el ZIP y extrae su contenido **dentro** de `C:\Apps\DeepFlow\`
-- Acepta sobrescribir los archivos existentes (exe, _internal, etc.)
-- `data/` no está en el ZIP, por tanto no se modifica
+## 3. Estrategia de datos
 
-En macOS, si usas `DeepFlow.app`:
-- El ZIP contiene la estructura del `.app`
-- Reemplaza el `.app` antiguo por el nuevo, **o** extrae el contenido del ZIP dentro del `.app` existente (clic derecho → Mostrar contenido del paquete) para preservar `data` si está dentro.
+| Qué | Ubicación | En updates |
+|-----|-----------|------------|
+| Código/recursos | `DeepFlow.exe`, `_internal/`, `config/`, `styles.qss` | ✓ |
+| Datos de usuario | `data/db/deepflow_db.fs` | ✗ |
+| Config opcional | `config/yaml/deepflow.yaml` | ✗ |
 
-### Recomendación para macOS
+La base de datos (ZODB) vive en `data/db/deepflow_db.fs`, relativo al ejecutable. **Nunca** se incluye en paquetes de actualización.
 
-Para que las actualizaciones sean más seguras, conviene mover los datos fuera del bundle:
+---
+
+## 4. Versión del schema de la BD
+
+Antes de actualizar, para ver la versión del schema:
+
+```bash
+python script/check_schema_version.py
+```
+
+O con ruta explícita:
+
+```bash
+python script/check_schema_version.py /ruta/a/DeepFlow/data/db
+```
+
+Si está en v1, v2, etc., al abrir la app nueva se migrará automáticamente.
+
+---
+
+## 5. macOS: datos fuera del bundle
+
+Para actualizaciones más seguras en Mac, conviene mover los datos fuera del `.app`:
 
 1. Edita `config/yaml/deepflow.yaml` dentro del `.app`
-2. Cambia `data_dir` a una ruta fija, por ejemplo:
+2. Cambia `data_dir` a una ruta fija:
    ```yaml
    data_dir: ~/Library/Application Support/DeepFlow
    ```

@@ -26,6 +26,7 @@ deepflow/
 ├── application/               # Capa de aplicación (casos de uso)
 ├── infrastructure/            # Capa de infraestructura (persistencia, export)
 ├── presentation/              # Capa de presentación (PyQt6)
+├── script/                    # Scripts de build (generate_icons, build_dist, build_update_package)
 ├── tests/                     # Tests unitarios
 └── docs/                      # Documentación
 ```

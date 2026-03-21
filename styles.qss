@@ -2,7 +2,6 @@
 /* Paleta: Teal + terracotta, fondos cálidos */
 
 * {
-    font-family: -apple-system, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
     font-size: 13px;
 }
 
