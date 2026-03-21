@@ -1,6 +1,6 @@
 """Utilidades de dominio TaskBoard (funciones puras)."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from domain.taskboard.constants import TZ_APP
 
@@ -261,6 +261,78 @@ def compute_time_per_task_in_period(
     return result
 
 
+def compute_time_per_task_with_blocked_periods(
+    board_data: dict,
+    columns: list[str],
+    transitions: list[dict],
+    from_date: datetime,
+    to_date: datetime,
+) -> dict[str, tuple[int, int]]:
+    """
+    Calcula (active_secs, detenido_secs) por task_id combinando:
+    - Barra temporal: started_at / finished_at (o now)
+    - Detenido: transiciones (to_column=detenido) + task.blocked_periods
+    Usa started_at/finished_at como fuente de verdad para la barra.
+    """
+    from_date = from_date.replace(tzinfo=TZ_APP) if from_date.tzinfo is None else from_date
+    to_date = to_date.replace(tzinfo=TZ_APP) if to_date.tzinfo is None else to_date
+    now = datetime.now(TZ_APP)
+
+    time_from_trans = compute_time_per_task_in_period(transitions, from_date, to_date)
+    time_from_dates = compute_time_per_task_from_task_dates(
+        board_data, columns, from_date, to_date
+    )
+
+    result: dict[str, tuple[int, int]] = {}
+
+    task_by_id: dict[str, dict] = {}
+    for col in columns:
+        for t in (board_data.get(col, []) or []):
+            if isinstance(t, dict) and t.get("id"):
+                task_by_id[t["id"]] = t
+
+    for task_id, (total_secs, _) in time_from_dates.items():
+        bar_start = bar_end = None
+        task = task_by_id.get(task_id, {})
+        if task:
+            bar_start = _parse_ts(task.get("started_at"))
+            bar_end = _parse_ts(task.get("finished_at")) or min(now, to_date)
+        if not bar_start or not bar_end or bar_start >= bar_end:
+            continue
+        bar_start = max(bar_start, from_date)
+        bar_end = min(bar_end, to_date)
+        if bar_start >= bar_end:
+            continue
+
+        trans_detenido_stints = []
+        stints = get_stints_per_task_in_period(transitions, from_date, to_date)
+        for s in stints:
+            if s.get("task_id") != task_id or s.get("column_key") != "detenido":
+                continue
+            start_s, end_s = s.get("start"), s.get("end")
+            if not start_s or not end_s:
+                continue
+            s_c = max(start_s, bar_start)
+            e_c = min(end_s, bar_end)
+            if s_c < e_c:
+                trans_detenido_stints.append({"start": s_c, "end": e_c})
+        blocked_stints = get_blocked_period_stints_from_task(task, bar_start, bar_end)
+        merged_stints = _merge_overlapping_detenido_stints(
+            trans_detenido_stints + blocked_stints
+        )
+        merged_detenido = sum(
+            int((s["end"] - s["start"]).total_seconds()) for s in merged_stints
+        )
+        active = max(0, total_secs - merged_detenido)
+        result[task_id] = (active, merged_detenido)
+
+    for task_id, (a, d) in time_from_trans.items():
+        if task_id not in result and (a > 0 or d > 0):
+            result[task_id] = (a, d)
+
+    return result
+
+
 def compute_time_per_task_from_task_dates(
     board_data: dict,
     columns: list[str],
@@ -312,6 +384,74 @@ def compute_time_per_task_from_task_dates(
                 result[task_id] = (secs, 0)
 
     return result
+
+
+def get_blocked_period_stints_from_task(
+    task: dict,
+    bar_start: datetime,
+    bar_end: datetime,
+) -> list[dict]:
+    """
+    Parsea task.blocked_periods y retorna stints detenido en [bar_start, bar_end].
+    Retorno: [{start, end, column_key: "detenido"}, ...]
+    """
+    periods = task.get("blocked_periods") or []
+    if not periods or not bar_start or not bar_end:
+        return []
+    result = []
+    for p in periods:
+        if not isinstance(p, dict):
+            continue
+        start_dt = _parse_ts(p.get("start"))
+        end_dt = _parse_ts(p.get("end"))
+        if not start_dt or not end_dt or start_dt >= end_dt:
+            continue
+        s = max(start_dt, bar_start)
+        e = min(end_dt, bar_end)
+        if s < e:
+            result.append({"start": s, "end": e, "column_key": "detenido"})
+    return result
+
+
+def _merge_overlapping_detenido_stints(stints: list[dict]) -> list[dict]:
+    """Fusiona intervalos detenido solapados. Entrada y salida ordenados por start."""
+    if not stints:
+        return []
+    sorted_stints = sorted(stints, key=lambda x: x.get("start") or datetime.min.replace(tzinfo=TZ_APP))
+    merged = [dict(sorted_stints[0])]
+    for s in sorted_stints[1:]:
+        start, end = s.get("start"), s.get("end")
+        if not start or not end:
+            continue
+        last = merged[-1]
+        last_end = last.get("end")
+        if last_end and start <= last_end:
+            last["end"] = max(last_end, end)
+        else:
+            merged.append({"start": start, "end": end, "column_key": "detenido"})
+    return merged
+
+
+def merge_transition_and_blocked_stints(
+    transition_stints: list[dict],
+    blocked_stints: list[dict],
+    bar_start: datetime,
+    bar_end: datetime,
+) -> list[dict]:
+    """
+    Combina stints de transiciones (in_progress y detenido) con stints de blocked_periods.
+    Los blocked_periods se tratan como detenido. Fusiona intervalos detenido solapados.
+    Retorno: lista de segmentos ordenados para el timeline.
+    """
+    detenido_from_trans = [s for s in transition_stints if s.get("column_key") == "detenido"]
+    all_detenido = detenido_from_trans + blocked_stints
+    merged_detenido = _merge_overlapping_detenido_stints(all_detenido)
+    in_progress = [s for s in transition_stints if s.get("column_key") == "in_progress"]
+    combined = sorted(
+        in_progress + merged_detenido,
+        key=lambda x: x.get("start") or bar_start,
+    )
+    return combined
 
 
 def get_stints_per_task_in_period(
@@ -489,10 +629,30 @@ def iso_to_dd_mm_yyyy_hh_mm(iso_string: str | None) -> str:
         return ""
 
 
+def default_blocked_period_start() -> str:
+    """Inicio por defecto para tiempo bloqueado: hace 7 días, minutos redondeados a 0,10,20,30,40,50."""
+    now = datetime.now(TZ_APP)
+    start = now - timedelta(days=7)
+    m = start.minute
+    rounded_m = min(50, round(m / 10) * 10)
+    start = start.replace(minute=int(rounded_m), second=0, microsecond=0)
+    return start.isoformat()
+
+
+def default_blocked_period_end() -> str:
+    """Fin por defecto para tiempo bloqueado: ahora, minutos redondeados hacia abajo a 0,10,20,30,40,50."""
+    now = datetime.now(TZ_APP)
+    m = now.minute
+    rounded_m = (m // 10) * 10
+    now = now.replace(minute=rounded_m, second=0, microsecond=0)
+    return now.isoformat()
+
+
 def parse_date_to_iso(text: str) -> str | None:
     """
     Parsea texto a ISO 8601. Acepta:
     - dd/mm/yyyy o dd-mm-yyyy (ej: 13/03/2026)
+    - dd/mm o dd-mm (ej: 13/03) → año actual
     - dd/mm/yyyy HH:mm (ej: 13/03/2026 14:30)
     - '13 Mar 2026' (formato display)
     - '2026-03-13'
@@ -518,12 +678,21 @@ def parse_date_to_iso(text: str) -> str | None:
             except (ValueError, TypeError):
                 pass
     for sep in ("/", "-"):
-        if sep in date_part and date_part.count(sep) >= 2:
+        if sep in date_part:
             p = date_part.split(sep)
             if len(p) >= 3:
                 try:
                     d, m, y = int(p[0]), int(p[1]), int(p[2])
                     if 1 <= d <= 31 and 1 <= m <= 12 and 1900 <= y <= 2100:
+                        dt = datetime(y, m, d, hour, minute, 0, tzinfo=TZ_APP)
+                        return dt.isoformat()
+                except (ValueError, TypeError, IndexError):
+                    pass
+            elif len(p) == 2:
+                try:
+                    d, m = int(p[0]), int(p[1])
+                    if 1 <= d <= 31 and 1 <= m <= 12:
+                        y = datetime.now(TZ_APP).year
                         dt = datetime(y, m, d, hour, minute, 0, tzinfo=TZ_APP)
                         return dt.isoformat()
                 except (ValueError, TypeError, IndexError):

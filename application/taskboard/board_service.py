@@ -193,6 +193,7 @@ class BoardService:
             "due_date": "",
             "requester": "",
             "reporting_channel": "",
+            "blocked_periods": [],
         }
         if column_key == "in_progress":
             task["started_at"] = now
@@ -346,6 +347,28 @@ class BoardService:
         if not task:
             return False
         task["finished_at"] = iso_value
+        self.persist()
+        return True
+
+    def update_task_blocked_periods(
+        self, task_id: str, periods: list[dict[str, str]]
+    ) -> bool:
+        """
+        Actualiza períodos bloqueados (manuales).
+        periods: [{start: ISO8601, end: ISO8601}, ...]
+        """
+        task = self._find_task(task_id)
+        if not task:
+            return False
+        valid = []
+        for p in periods or []:
+            if not isinstance(p, dict):
+                continue
+            start_s = (p.get("start") or "").strip()
+            end_s = (p.get("end") or "").strip()
+            if start_s and end_s and start_s < end_s:
+                valid.append({"start": start_s, "end": end_s})
+        task["blocked_periods"] = valid
         self.persist()
         return True
 

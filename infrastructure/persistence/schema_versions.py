@@ -8,6 +8,8 @@ Versionado de schema para ZODB.
   - schema_version 6: maestro categoria
   - schema_version 7: backfill finished_at en tareas en Done
   - schema_version 8: maestro kanban_columns (columnas con wip_limit configurable)
+  - schema_version 9: blocked_periods en tareas (períodos bloqueados editables por usuario)
+  - schema_version 10: order en subtareas (asignar 0,1,2,... si no existe, ordenar lista)
 """
 
 import logging
@@ -47,6 +49,10 @@ def migrate_to_latest(data: dict[str, Any], from_version: int) -> dict[str, Any]
         result = _migrate_v6_to_v7(result)
     if from_version < 8:
         result = _migrate_v7_to_v8(result)
+    if from_version < 9:
+        result = _migrate_v8_to_v9(result)
+    if from_version < 10:
+        result = _migrate_v9_to_v10(result)
     LOG.debug("Migración de schema completada")
     return result
 
@@ -183,4 +189,37 @@ def _migrate_v7_to_v8(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-CURRENT_SCHEMA_VERSION = 8
+def _migrate_v8_to_v9(data: dict[str, Any]) -> dict[str, Any]:
+    """Migra a v9. Añade blocked_periods (períodos bloqueados editables) en tareas."""
+    cols = data.get("columns") or {}
+    for col_tasks in cols.values():
+        for task in col_tasks:
+            if isinstance(task, dict) and "blocked_periods" not in task:
+                task["blocked_periods"] = []
+    return data
+
+
+def _migrate_v9_to_v10(data: dict[str, Any]) -> dict[str, Any]:
+    """Migra a v10. Asigna order 0,1,2,... a subtareas que no lo tienen; ordena la lista."""
+    cols = data.get("columns") or {}
+    for col_tasks in cols.values():
+        for task in col_tasks:
+            if not isinstance(task, dict):
+                continue
+            subtasks = task.get("subtasks")
+            if not isinstance(subtasks, list) or not subtasks:
+                continue
+            valid = [s for s in subtasks if isinstance(s, dict)]
+            for i, st in enumerate(valid):
+                if "order" not in st:
+                    st["order"] = i
+                if "name" not in st and "text" in st:
+                    st["name"] = st["text"]
+                if "estado" not in st:
+                    st["estado"] = "done" if st.get("done") else "pending"
+            valid.sort(key=lambda x: x.get("order", 999))
+            task["subtasks"] = valid
+    return data
+
+
+CURRENT_SCHEMA_VERSION = 10

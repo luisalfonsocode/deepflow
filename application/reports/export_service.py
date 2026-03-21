@@ -7,11 +7,12 @@ from datetime import datetime
 from typing import Any
 
 from domain.taskboard.utils import (
-    compute_time_per_task_from_task_dates,
-    compute_time_per_task_in_period,
+    compute_time_per_task_with_blocked_periods,
     format_seconds_duration,
+    get_blocked_period_stints_from_task,
     get_stints_per_task_in_period,
     get_task_bars_for_timeline,
+    merge_transition_and_blocked_stints,
 )
 
 
@@ -148,17 +149,10 @@ class ExportService:
                         "categoria": (t.get("categoria") or "").strip() or "(sin categoría)",
                     }
 
-        # Prioridad: started_at/finished_at (fechas editadas) sobre transiciones
-        time_from_dates = compute_time_per_task_from_task_dates(
-            self._board_data, cols, from_date, to_date
+        # Combina fechas, transiciones y blocked_periods
+        time_per_task = compute_time_per_task_with_blocked_periods(
+            self._board_data, cols, transitions, from_date, to_date
         )
-        time_from_transitions = compute_time_per_task_in_period(
-            transitions, from_date, to_date
-        )
-        time_per_task = dict(time_from_dates)
-        for tid, (a, d) in time_from_transitions.items():
-            if tid not in time_per_task:
-                time_per_task[tid] = (a, d)
 
         # Detalle por tarea, ordenado por categoría
         detail: list[dict[str, Any]] = []
@@ -242,6 +236,12 @@ class ExportService:
             if tid:
                 stints_by_task.setdefault(tid, []).append(s)
 
+        task_by_id: dict[str, dict] = {}
+        for col in cols:
+            for t in (self._board_data.get(col, []) or []):
+                if isinstance(t, dict) and t.get("id"):
+                    task_by_id[t["id"]] = t
+
         for bar in timeline_bars:
             tid = bar.get("task_id", "")
             if tid and tid in task_info:
@@ -249,20 +249,25 @@ class ExportService:
             bar_start = bar.get("bar_start")
             bar_end = bar.get("bar_end")
             segments = []
-            task_stints = stints_by_task.get(tid, [])
-            task_stints.sort(key=lambda x: x.get("start") or from_date)
-            if task_stints and bar_start and bar_end:
-                for s in task_stints:
-                    seg_start = s.get("start")
-                    seg_end = s.get("end")
-                    col_key = s.get("column_key", "in_progress")
+            task_stints_raw = stints_by_task.get(tid, [])
+            task_stints_raw.sort(key=lambda x: x.get("start") or from_date)
+            task_obj = task_by_id.get(tid, {})
+            blocked_stints = get_blocked_period_stints_from_task(task_obj, bar_start, bar_end)
+            if task_stints_raw or blocked_stints:
+                clamped_trans = []
+                for s in task_stints_raw:
+                    seg_start, seg_end = s.get("start"), s.get("end")
                     if not seg_start or not seg_end:
                         continue
                     s_ = max(seg_start, bar_start)
                     e_ = min(seg_end, bar_end)
                     if s_ < e_:
-                        segments.append({"start": s_, "end": e_, "column_key": col_key})
-                segments = _fill_timeline_gaps(segments, bar_start, bar_end)
+                        clamped_trans.append({"start": s_, "end": e_, "column_key": s.get("column_key", "in_progress")})
+                merged = merge_transition_and_blocked_stints(
+                    clamped_trans, blocked_stints, bar_start, bar_end
+                )
+                if merged and bar_start and bar_end:
+                    segments = _fill_timeline_gaps(merged, bar_start, bar_end)
             if not segments and bar_start and bar_end:
                 segments = [{"start": bar_start, "end": bar_end, "column_key": "in_progress"}]
             bar["segments"] = segments

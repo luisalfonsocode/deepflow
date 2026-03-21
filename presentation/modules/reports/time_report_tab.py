@@ -242,13 +242,14 @@ class PieChartWidget(QWidget):
         y0 = self.MARGIN_TOP + self.PIE_SIDE + self.PIE_LEGEND_GAP
         painter.setFont(self.font())
         col_cat = 8
-        col_pct = max(80, r.width() - 220)
-        col_tareas = max(130, r.width() - 160)
-        col_dias = r.width() - 50
+        # Más espacio para categoría; % y Tiempo (d) juntos a la derecha
+        col_tareas = r.width() - 165
+        col_pct = r.width() - 115
+        col_dias = r.width() - 55
         painter.setPen(QColor("#475569"))
         painter.drawText(col_cat, y0 - 4, "Categoría")
-        painter.drawText(col_pct, y0 - 4, "%")
         painter.drawText(col_tareas - 40, y0 - 4, "Tareas")
+        painter.drawText(col_pct, y0 - 4, "%")
         painter.drawText(col_dias - 50, y0 - 4, "Tiempo (d)")
         painter.drawLine(8, y0 + 4, r.width() - 8, y0 + 4)
 
@@ -259,10 +260,10 @@ class PieChartWidget(QWidget):
             painter.drawRect(col_cat, y - 10, 10, 10)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QColor("#334155"))
-            lbl = (label[:22] + "…") if len(label) > 22 else label
+            lbl = (label[:38] + "…") if len(label) > 38 else label
             painter.drawText(col_cat + 18, y + 2, lbl)
-            painter.drawText(col_pct, y + 2, f"{pct:.1f}%")
             painter.drawText(col_tareas - 36, y + 2, str(task_count))
+            painter.drawText(col_pct, y + 2, f"{pct:.1f}%")
             painter.drawText(col_dias - 45, y + 2, f"{tiempo_dias:.1f}")
 
         painter.end()

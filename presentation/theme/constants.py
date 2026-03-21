@@ -41,10 +41,10 @@ class Layout:
     """Dimensiones y márgenes reutilizables."""
 
     # Task detail / dialogs
-    TASK_DETAIL_MIN_WIDTH: Final[int] = 600
-    TASK_DETAIL_MIN_HEIGHT: Final[int] = 480
-    TASK_DETAIL_DEFAULT_WIDTH: Final[int] = 700
-    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 600
+    TASK_DETAIL_MIN_WIDTH: Final[int] = 640
+    TASK_DETAIL_MIN_HEIGHT: Final[int] = 520
+    TASK_DETAIL_DEFAULT_WIDTH: Final[int] = 780
+    TASK_DETAIL_DEFAULT_HEIGHT: Final[int] = 620
 
     # Modal módulos (Reports con timeline y gráficos necesita más espacio)
     MODAL_MIN_WIDTH: Final[int] = 800

@@ -20,7 +20,7 @@ Cuando el schema cambia (nuevos campos, tablas, o cambios de estructura), se esc
 
 | Archivo | Responsabilidad |
 |---------|-----------------|
-| `infrastructure/persistence/schema_versions.py` | Define `CURRENT_SCHEMA_VERSION` (8) y `migrate_to_latest()` |
+| `infrastructure/persistence/schema_versions.py` | Define `CURRENT_SCHEMA_VERSION` (10) y `migrate_to_latest()` |
 | `infrastructure/persistence/zodb_repository.py` | Lee `schema_version` del root y aplica migraciones |
 
 ### Versiones de schema actuales
@@ -35,6 +35,8 @@ Cuando el schema cambia (nuevos campos, tablas, o cambios de estructura), se esc
 | 6 | Maestro categoria |
 | 7 | Backfill finished_at en tareas en Done |
 | 8 | Maestro kanban_columns (wip_limit configurable por columna) |
+| 9 | blocked_periods en tareas (períodos bloqueados editables) |
+| 10 | order en subtareas (asignar 0,1,2,... si no existe; ordenar lista) |
 
 ---
 
